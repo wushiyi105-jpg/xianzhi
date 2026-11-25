@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xianzhi"
+version = "0.1.0"
+description = "二手转卖 Agent —— 定价、到手价、文案与砍价应答"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+
+[project.scripts]
+xianzhi = "xianzhi.cli:main"
+
+[tool.setuptools]
+packages = ["xianzhi"]
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
