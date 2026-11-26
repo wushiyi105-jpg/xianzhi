@@ -56,20 +56,34 @@ python -m xianzhi --mock quote --file examples/case-01.txt --original 5999
 
 | File | Case | Original | Result |
 |---|---|---|---|
-| `case-01.txt` | iPhone 13 128G, spare phone | 5999 | 90% · list 942 (range 801–1055, floor 753) |
-| `case-02.txt` | Haier 465L fridge, moving out | 4299 | 80% · 4 years · list 495 |
-| `case-03.txt` | Sony A7M3 body only | 12999 | 99% · no flaws · list 4827 |
-| `case-04.txt` | LV Neverfull MM | 12000 | 95% · banned phrase "tenfold refund" · list 1944 |
+| `case-01.txt` | iPhone 13 128G, spare phone | 5999 | 90% · market anchor 1525 (range 1408–1642, floor 1220); formula price 942, -38% flagged |
+| `case-02.txt` | Haier 465L fridge, moving out | 4299 | model not in table → formula 495 (range 421–555) |
+| `case-03.txt` | Sony A7M3 body only | 12999 | 99% · no flaws · market anchor 6300 (range 5775–6825) |
+| `case-04.txt` | LV Neverfull MM | 12000 | 95% · banned phrase "tenfold refund" · market anchor 4900; formula 1944, -60% flagged |
 
 These four are regression material: "九成新" is not "95新", "no repair / no water damage / no scratches" are negations and not flaws, while "battery health 85%" is a battery deduction — each one has a test.
+
+### 💹 Market anchor
+
+Real used prices for 3C gear are set by **what the same model sells for today**, not by what it cost new: an iPhone 13 launched at 5999 still trades at 1500–2200 on Xianyu in Nov 2026; an LV Neverfull bought at 12000 still sells around 4900. Linear depreciation against the original price makes both look implausibly cheap to anyone who knows the market.
+
+So pricing has two layers:
+
+1. `data/market.json` holds current second-hand ranges for 29 popular models (iPhone 13/14/15, Xiaomi 13/14, Mate60, iPad Air5, MacBook Air M1, A7M3, EOS R6, Dyson V8, LV Neverfull…). The baseline is the **95%-new, flaw-free private-sale price**, split by storage, hand-compiled for Nov 2026 — not scraped.
+2. Pricing is market-first: `range midpoint × condition adjustment × (1 - flaws)`, falling back to the model's default tier when storage does not match. Only models missing from the table fall back to original-price depreciation; when both exist, the formula price is computed too and a deviation above 30% is flagged as "too far off, market wins" — the basis is never switched silently.
+
+```bash
+# model in the table: no original price needed
+python -m xianzhi --mock quote --text "iPhone 13 128G 95新 电池健康 85% 无拆修"
+```
 
 ## 🤔 Why not just ask a general LLM
 
 A general model says "check recent sales and list around 3,000". That number cannot be recomputed and you cannot tell whether you lost money. Four differences:
 
-1. **Every number can be recomputed** — `rules.price()` uses `original × first-year retention × decay^(years-1) × condition × (1 - flaws)`, floored at `original × residual floor`. Input 5999, bought 2023, 95%, scratches + battery + no box, and the answer is always 1042. Anyone can reproduce it; "around 3,000" has no intermediate steps.
-2. **Range and floor are separate** — listing range 886–1167, floor 834. Three numbers with three jobs: the range to list, the floor to hold. A single model number gives you no anchor when someone bargains.
-3. **Platform fees reach the net price** — Hongbulin's 10% means listing at 1042 nets 938, 104 less than Xianyu; Aihuishou is not a fee but a trade-in price, so listing at 942 nets 754 there. Only arithmetic makes that visible.
+1. **Right anchor, believable number** — used 3C gear is priced by today's market for the same model, not by linear depreciation. The original-price formula (`original × first-year retention × decay^(years-1) × condition × (1 - flaws)`) is kept as a reference basis and explicitly overridden when it deviates more than 30%. An iPhone 13 128G at 90% gets 1525 instead of 942; an LV Neverfull gets 4900 instead of 1944.
+2. **Range and floor are separate** — list 1525, range 1408–1642, floor 1220. Three numbers with three jobs: the range to list, the floor to hold. A single model number gives you no anchor when someone bargains.
+3. **Platform fees reach the net price** — the same iPhone 13 at 1525 nets 1525 on Xianyu, 1502 on Zhuangzhuan, 1372 on Hongbulin (10% commission), 1220 on Aihuishou (trade-in at 80%). Only arithmetic makes that visible.
 4. **Works offline** — pricing, platforms, copy, bargaining, banned words and checklist are all local; without a key you only lose the model's advice paragraphs.
 
 ## 🎯 Use cases
@@ -81,7 +95,7 @@ A general model says "check recent sales and list around 3,000". That number can
 
 ## 🗺 Roadmap
 
-- **Comparable sales**: pull public sold prices and show formula price next to market price, flagging gaps over 15%.
+- **Auto-refreshing market ranges**: the 29 ranges are hand-compiled Nov 2026 estimates; next step is scraping listed and sold samples to refresh them on a 7-day window.
 - **Multi-platform repricing**: platform-specific title lengths and tags, keeping a price history.
 - **Photo guide per category**: required angles, with a completeness check.
 - **Post-sale haggling library**: replies for "not as described", "malfunction", "shipping dispute".
@@ -90,7 +104,10 @@ A general model says "check recent sales and list around 3,000". That number can
 ## ❓ FAQ
 
 **No original price?**
-Then only the method is possible, not a number: the tool asks for the price and purchase year. Alternatively use the median of recent sold prices minus 5%–8%.
+If the model is in the market table (29 popular models) you get a price without one — "iPhone 13 128G 95新" is enough. Only an unknown model with no original price triggers the prompt for price and purchase year.
+
+**Where do the ranges come from?**
+Hand-compiled Nov 2026 private-sale estimates, stated in `data/market.json` under `note` — not presented as scraped live data. Edit that file to fit your local market; the pricing logic stays the same.
 
 **How is condition judged?**
 By the longest keyword hit: unopened, 99% / opened only, 95% / light use, 90% (九成新 too) / normal wear, 80% / dents. "九成新" is 90% (0.58), not 95%. Default is 95%, and the coefficient is printed so you can change it.

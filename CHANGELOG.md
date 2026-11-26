@@ -19,9 +19,11 @@
 - #5 平台到手价支持回收折价，爱回收按 8 折估算，不再与闲鱼同价
 - #6 年限冲突时以「用了 N 年」为准，不再被购入年份覆盖
 - #7 网页底价框与 CLI `--floor` 接通，底价可自定；`--file` 读不到文件时给中文提示并以 2 退出
+- #8 定价锚点改为行情优先：`data/market.json` 收录 29 个主流型号的当前二手区间（95新无瑕疵个人成交基准，按容量分档，2026-11 人工整理），算价为 `行情中位 × 成色调整 × (1 - 瑕疵)`；型号不在表里才回落原价折旧；两者都有时并列计算，偏离超过 30% 提示「以行情为准」。iPhone 13 128G 9成新从 942 变为 1525，LV Neverfull 从 1944 变为 4900
 
 ### 新增
 
-- `examples/` 四份真实闲鱼文案与 `examples/out/` 实跑输出
-- `tests/test_integration.py`（16 个）：HTTP 真起服务、模型层按本仓 schema、CLI 子进程
+- `examples/` 四份真实闲鱼文案与 `examples/out/` 实跑输出（按行情锚点重新生成）
+- `tests/test_integration.py`（18 个）：HTTP 真起服务、模型层按本仓 schema、CLI 子进程
+- `tests/test_xianzhi.py` 增加行情锚点一组（8 个）：区间落在真实成交带、无原价也能出价、型号缺失回落公式、偏离提示、容量分档、型号最长命中、成色单调
 - CI 增加 docker job，打 tag 时推送 `ghcr.io/wushiyi105-jpg/xianzhi`

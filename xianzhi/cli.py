@@ -33,14 +33,32 @@ def render(r):
     p = r["price"]
     if p:
         lines.append("💰 定价")
-        lines.append("  原价 %d → 残值基数 %d(首年 %.0f%%,其后每年 ×%.2f,下限 %.0f%%)"
-                     % (p["original"], p["base"], r["category"]["year1"] * 100,
-                        r["category"]["annual"], r["category"]["floor"] * 100))
-        lines.append("  成色 ×%.2f,瑕疵 -%d%% → 建议挂 %d 元(区间 %d–%d),底价 %d 元%s"
-                     % (p["condition_coef"], p["flaw_deduct"] * 100, p["suggested"],
-                        p["low"], p["high"], p["floor_price"],
-                        "(按你填的底价)" if p.get("floor_from_user") else ""))
-        lines.append("  公式:" + p["formula"])
+        if p.get("source") == "market":
+            lo, hi = p["market_base"]
+            lines.append("  行情锚点:%s(%s)95新无瑕疵 %d–%d 元"
+                         % (p["model"], (p["storage"] + "G") if p.get("storage") else "默认容量", lo, hi))
+            lines.append("  成色 ×%.2f,瑕疵 -%d%% → 建议挂 %d 元(区间 %d–%d),底价 %d 元%s"
+                         % (p["condition_adj"], p["flaw_deduct"] * 100, p["suggested"],
+                            p["low"], p["high"], p["floor_price"],
+                            "(按你填的底价)" if p.get("floor_from_user") else ""))
+            if p.get("formula_suggested") is not None:
+                gap = p["formula_gap"] * 100
+                lines.append("  原价公式参考:%d 元%s"
+                             % (p["formula_suggested"],
+                                "，偏离 %+.0f%%(偏离过大,以行情为准)" % gap if p.get("gap_alert")
+                                else "(与行情接近)"))
+            lines.append("  口径:同型号当前二手行情 × 成色 × 瑕疵,不按当年买价折旧")
+        else:
+            lines.append("  原价 %d → 残值基数 %d(首年 %.0f%%,其后每年 ×%.2f,下限 %.0f%%)"
+                         % (p["original"], p["base"], r["category"]["year1"] * 100,
+                            r["category"]["annual"], r["category"]["floor"] * 100))
+            lines.append("  成色 ×%.2f,瑕疵 -%d%% → 建议挂 %d 元(区间 %d–%d),底价 %d 元%s"
+                         % (p["condition_coef"], p["flaw_deduct"] * 100, p["suggested"],
+                            p["low"], p["high"], p["floor_price"],
+                            "(按你填的底价)" if p.get("floor_from_user") else ""))
+            lines.append("  公式:" + p["formula"])
+            if not r.get("model"):
+                lines.append("  注:型号不在行情表里,只能按原价折旧;补一句具体型号可更贴近行情")
         lines.append("")
         lines.append("🏪 各平台到手(按建议价)")
         for x in r["platforms"]:

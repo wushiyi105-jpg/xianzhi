@@ -63,6 +63,9 @@ class TestHttpLayer(unittest.TestCase):
         # 页面必须自己渲染区间与到手价,这两个数是本仓的核心卖点
         self.assertIn("区间", body)
         self.assertIn("平台到手", body)
+        # 行情锚点与偏离提示必须出现在页面脚本里,否则前端只能显示公式口径
+        self.assertIn("行情锚点", body)
+        self.assertIn("以行情为准", body)
 
     def test_status_mock(self):
         status, body = self._get("/api/status")
@@ -73,11 +76,21 @@ class TestHttpLayer(unittest.TestCase):
         status, r = self._post("/api/quote", {"text": PHONE, "original": "5999"})
         self.assertEqual(status, 200)
         self.assertEqual(r["mode"], "offline")
-        self.assertEqual(r["price"]["suggested"], 1042)
-        self.assertEqual(r["price"]["low"], 886)
-        self.assertEqual(r["price"]["high"], 1167)
+        # 行情锚点口径:iPhone 13 128G 95新 落在 1500–2200 的真实成交带里
+        self.assertEqual(r["price"]["source"], "market")
+        self.assertEqual(r["price"]["suggested"], 1599)
+        self.assertEqual(r["price"]["low"], 1476)
+        self.assertEqual(r["price"]["high"], 1722)
+        self.assertEqual(r["model"], "iPhone 13")
         self.assertEqual([p["name"] for p in r["platforms"]],
                          ["闲鱼", "转转", "爱回收", "红布林"])
+
+    def test_quote_flags_formula_gap(self):
+        # 原价公式只给 1042,行情给 1599,偏离 -35% 以上必须提示,不能悄悄用公式
+        status, r = self._post("/api/quote", {"text": PHONE, "original": "5999"})
+        self.assertEqual(status, 200)
+        self.assertEqual(r["price"]["formula_suggested"], 1042)
+        self.assertTrue(r["price"]["gap_alert"])
 
     def test_quote_floor_applied(self):
         status, r = self._post("/api/quote", {"text": PHONE, "original": "5999", "floor": "1800"})
@@ -136,7 +149,7 @@ class TestModelLayer(unittest.TestCase):
         r, _ = self._run({"tips": ["建议挂 1200 元,底价 900 元"], "risks": [], "buyer_questions": []})
         self.assertEqual(r["tips"], ["建议挂该价格,底价该价格"])
         self.assertNotIn("1200", r["tips"][0])
-        self.assertEqual(r["price"]["suggested"], 1042)
+        self.assertEqual(r["price"]["suggested"], 1599)
 
     def test_force_mock_wins_over_key(self):
         r, fake = self._run({"tips": ["x"], "risks": [], "buyer_questions": []}, force_mock=True)
@@ -162,9 +175,18 @@ class TestCliLayer(unittest.TestCase):
     def test_quote_file_ok(self):
         r = self._run(["--mock", "quote", "--file", "examples/case-01.txt", "--original", "5999"])
         self.assertEqual(r.returncode, 0)
-        self.assertIn("建议挂 942 元", r.stdout)
+        self.assertIn("建议挂 1525 元", r.stdout)
+        self.assertIn("行情锚点:iPhone 13(128G)95新无瑕疵 1800–2100 元", r.stdout)
+        # 公式价与行情偏离时必须让用户看见,不能只打印一个新数字
+        self.assertIn("偏离 -38%(偏离过大,以行情为准)", r.stdout)
         self.assertIn("爱回收", r.stdout)
         self.assertIn("折价 20%", r.stdout)
+
+    def test_quote_market_without_original(self):
+        r = self._run(["--mock", "quote", "--text", "iPhone 13 128G 95新 电池健康 85% 无拆修"])
+        self.assertEqual(r.returncode, 0)
+        self.assertIn("按行情锚点(iPhone 13)", r.stdout)
+        self.assertNotIn("原价 0", r.stdout)
 
     def test_quote_no_input_exit_2(self):
         r = self._run(["--mock", "quote"], stdin="")

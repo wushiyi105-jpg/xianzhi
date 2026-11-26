@@ -133,8 +133,8 @@ class TestAgent(unittest.TestCase):
         for k in ("tips", "risks", "buyer_questions", "listing", "bargain"):
             self.assertTrue(r[k])
 
-    def test_no_original(self):
-        r = agent.quote(sample(), force_mock=True)
+    def test_no_original_no_model(self):
+        r = agent.quote("宜家沙发,9成新,搬家急出", force_mock=True)
         self.assertIsNone(r["price"])
         self.assertTrue(r["tips"])
 
@@ -243,6 +243,65 @@ class TestUserFloor(unittest.TestCase):
     def test_bargain_respects_user_floor(self):
         r = agent.quote("iPhone 13 95新", original=5999, force_mock=True, floor=1200)
         self.assertTrue(all("1200" in b["reply"] or b["offer"] >= 1200 for b in r["bargain"]))
+
+
+class TestMarketAnchor(unittest.TestCase):
+    """3C 二手看同型号当前行情,不看当年买价;原价公式只做参考并提示偏离。"""
+
+    PHONE = "iPhone 13 128G,95新,2023年买的,电池健康 82%,屏幕有细微划痕,无盒"
+
+    def test_seed_table_is_broad_enough(self):
+        models = rules.load("market.json")["models"]
+        self.assertGreaterEqual(len(models), 20)
+        for m in models:
+            self.assertTrue(m["ranges"].get("default"))
+
+    def test_iphone13_lands_in_real_band(self):
+        p, _ = rules.pricing(self.PHONE, *self._ctx(self.PHONE), original=5999)
+        self.assertEqual(p["source"], "market")
+        # 2026 年 iPhone 13 128G 95新 正常成交在 1500–2200,不能再给 1000 以下
+        self.assertGreaterEqual(p["suggested"], 1500)
+        self.assertLessEqual(p["suggested"], 2200)
+
+    def test_market_price_works_without_original(self):
+        p, _ = rules.pricing("iPhone 13 128G 95新 电池健康 85% 无拆修",
+                             *self._ctx("iPhone 13 128G 95新"), original=None)
+        self.assertIsNotNone(p)
+        self.assertEqual(p["source"], "market")
+        self.assertGreaterEqual(p["suggested"], 1500)
+
+    def test_unknown_model_falls_back_to_formula(self):
+        text = "海尔 465L 冰箱 用了4年 8成新 有磕碰 制冷正常"
+        p, model = rules.pricing(text, *self._ctx(text), original=4299)
+        self.assertIsNone(model)
+        self.assertEqual(p["source"], "formula")
+
+    def test_gap_alert_when_formula_far_off(self):
+        text = "LV Neverfull 中号 专柜购买 有小票 95新 五金无氧化 无磨损"
+        p, model = rules.pricing(text, *self._ctx(text), original=12000)
+        self.assertEqual(model["name"], "LV Neverfull MM")
+        self.assertLess(p["formula_gap"], -0.4)
+        self.assertTrue(p["gap_alert"])
+
+    def test_storage_changes_price(self):
+        a, _ = rules.pricing("iPhone 13 128G 95新", *self._ctx("iPhone 13 128G 95新"))
+        b, _ = rules.pricing("iPhone 13 256G 95新", *self._ctx("iPhone 13 256G 95新"))
+        self.assertGreater(b["suggested"], a["suggested"])
+
+    def test_longest_alias_wins(self):
+        m = rules.detect_model("iPhone 13 Pro 128G 国行")
+        self.assertEqual(m["name"], "iPhone 13 Pro")
+
+    def test_condition_adjusts_market_price(self):
+        base = "iPhone 13 128G,"
+        prices = [rules.pricing(base + c, *self._ctx(base + c))[0]["suggested"]
+                  for c in ("99新", "95新", "9成新", "8成新")]
+        self.assertEqual(prices, sorted(prices, reverse=True))
+
+    @staticmethod
+    def _ctx(text):
+        cat, _ = rules.detect_category(text)
+        return (cat, rules.detect_condition(text), rules.detect_years(text), rules.detect_flaws(text))
 
 
 if __name__ == "__main__":

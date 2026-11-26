@@ -31,10 +31,16 @@ def strip_money(text):
 def summary(r):
     p = r["price"]
     if not p:
-        return "缺少原价,算不出折旧;补一句「原价 3299,2023 年买的」即可。"
-    return ("%s %s,用了约 %d 年,建议挂 %d 元(区间 %d–%d),底价 %d 元。"
-            % (r["category"]["name"], r["condition"]["name"], r["years"],
-               p["suggested"], p["low"], p["high"], p["floor_price"]))
+        return "没识别到具体型号,也没给原价:补一句「原价 3299,2023 年买的」就能算。"
+    head = "%s %s,用了约 %d 年," % (r["category"]["name"], r["condition"]["name"], r["years"])
+    if p.get("source") == "market":
+        head += "按行情锚点(%s)," % p["model"]
+    tail = ("建议挂 %d 元(区间 %d–%d),底价 %d 元。"
+            % (p["suggested"], p["low"], p["high"], p["floor_price"]))
+    if p.get("gap_alert"):
+        tail += (" 原价公式只给 %d 元(偏离 %+d%%),以行情为准。"
+                 % (p["formula_suggested"], round(p["formula_gap"] * 100)))
+    return head + tail
 
 
 def _model_advice(r, config):

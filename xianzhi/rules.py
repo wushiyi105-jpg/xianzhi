@@ -7,7 +7,10 @@ import re
 DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 YEAR_RE = re.compile(r"(20\d{2})\s*年?[买购入]")
 USED_RE = re.compile(r"用了?\s*(\d+(?:\.\d+)?)\s*年")
+STORAGE_RE = re.compile(r"(?<!\d)(32|64|128|256|512)\s*(?:g|gb)", re.IGNORECASE)
 FLAW_CAP = 0.30
+# 原价公式价与行情锚点偏离超过这个比例,就以行情为准并给出提示
+MARKET_GAP_ALERT = 0.30
 
 
 def load(name):
@@ -141,7 +144,8 @@ def banned(text):
 def listing(category, condition, flaws, price_info, original, extra=""):
     title = "%s %s %s 闲置转让" % (condition["name"], category["name"], "自用")
     body = ["【成色】%s,实物如图" % condition["name"],
-            "【购入】原价 %d 元,%s" % (original, extra or "自用,非商家货"),
+            "【购入】%s" % ("原价 %d 元,%s" % (original, extra or "自用,非商家货")
+                            if original else (extra or "自用非商家货,购买信息见描述")),
             "【瑕疵】%s" % ("、".join(f["name"] for f in flaws) or "无明显瑕疵,细节见图"),
             "【配件】以图为准,缺件已标注",
             "【交易】平台内下单,当面验货,不议价勿拍"]
@@ -182,6 +186,85 @@ def checklist(text):
     return out
 
 
+def detect_model(text):
+    """按别名最长命中识别具体型号;识别不到就没有行情锚点,只能走原价公式。"""
+    low = (text or "").lower()
+    best, best_len = None, 0
+    for m in load("market.json")["models"]:
+        for a in m["aliases"]:
+            a_low = a.lower()
+            if a_low in low and len(a_low) > best_len:
+                best, best_len = m, len(a_low)
+    return best
+
+
+def detect_storage(text, model):
+    """从「128G / 256GB」里取容量,型号表没有这一档就回落到 default。"""
+    if not model:
+        return None
+    m = STORAGE_RE.search(text or "")
+    if not m:
+        return None
+    key = m.group(1)
+    return key if key in model["ranges"] else None
+
+
+def market_price(model, condition, flaws, storage=None):
+    """行情锚点:同型号当前二手区间 × 成色调整 × (1 - 瑕疵)。
+
+    3C 二手的真实价格由同型号当前行情决定,与当年买多少钱关系不大,
+    所以这里不碰原价,只用型号 + 容量 + 成色 + 瑕疵。
+    """
+    cfg = load("market.json")
+    ranges = model["ranges"]
+    lo, hi = ranges.get(storage) or ranges["default"]
+    adj = cfg["condition_adj"].get(condition["key"], 1.0)
+    deduct = min(FLAW_CAP, sum(f["deduct"] for f in flaws))
+    k = adj * (1 - deduct)
+    return {
+        "source": "market",
+        "model": model["name"],
+        "storage": storage,
+        "market_base": [lo, hi],
+        "condition_adj": adj,
+        "flaw_deduct": round(deduct, 2),
+        "suggested": round((lo + hi) / 2 * k),
+        "low": round(lo * k),
+        "high": round(hi * k),
+    }
+
+
+def pricing(text, category, condition, years, flaws, original=None, floor=None, this_year=2026):
+    """先算行情价,再算原价公式价,以行情为主、公式为辅。
+
+    型号在行情表里 → 用行情;不在 → 回落到原价公式;两者都在且偏离超过 35% → 给出提示。
+    """
+    model = detect_model(text)
+    storage = detect_storage(text, model)
+    formula = price(original, category, condition, years, flaws) if original else None
+    market = market_price(model, condition, flaws, storage) if model else None
+
+    if market:
+        info = dict(market)
+        info["condition_coef"] = condition["coef"]
+        info["floor_price"] = round(floor) if floor else round(info["suggested"] * 0.80)
+        info["floor_from_user"] = bool(floor)
+        if formula:
+            info["formula_suggested"] = formula["suggested"]
+            info["formula"] = formula["formula"]
+            info["formula_gap"] = round(
+                (formula["suggested"] - market["suggested"]) / market["suggested"], 3)
+            info["gap_alert"] = abs(info["formula_gap"]) >= MARKET_GAP_ALERT
+    elif formula:
+        info = dict(formula)
+        info["source"] = "formula"
+        info["floor_price"] = round(floor) if floor else round(info["suggested"] * 0.80)
+        info["floor_from_user"] = bool(floor)
+    else:
+        info = None
+    return info, model
+
+
 def analyze(text, original=None, this_year=2026, floor=None):
     cat, hits = detect_category(text)
     if cat is None:
@@ -193,8 +276,10 @@ def analyze(text, original=None, this_year=2026, floor=None):
     years = detect_years(text, this_year)
     flaws = detect_flaws(text)
     orig = original or 0
-    price_info = price(orig, cat, cond, years, flaws, floor=floor) if orig else None
+    price_info, model = pricing(text, cat, cond, years, flaws,
+                                original=original, floor=floor, this_year=this_year)
     return {"category": cat, "category_note": cat_note, "category_hits": hits,
+            "model": model["name"] if model else None,
             "condition": cond, "years": years, "flaws": flaws,
             "price": price_info, "platforms": platform_net(price_info["suggested"]) if price_info else [],
             "banned": banned(text), "checklist": checklist(text),
