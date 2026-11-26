@@ -16,7 +16,7 @@ The hard part of selling second-hand is not posting — it is **pricing**. Too h
 - ✨ **5 condition grades** — new 1.00 / 99% 0.86 / 95% 0.72 / 90% 0.58 / 80% and below 0.40
 - 🩹 **5 flaw types** — appearance, battery, repair, missing parts, malfunction, 5%–20% each, capped at 30%
 - 💰 **Range and floor** — suggested ×0.85–1.12 is the listing range, ×0.80 is the bargaining floor
-- 🏪 **4 platform net prices** — Xianyu 0%, Zhuanzhuan 1.5%, Aihuishou 0%, Hongbulin 10%
+- 🏪 **4 platform net prices** — Xianyu 0%, Zhuanzhuan 1.5%, Hongbulin 10% by fee; Aihuishou buys at a trade-in price, estimated at 80% of the listing price (not a 0% fee)
 - 📝 **Listing copy** — title ≤30 characters, body with condition / purchase / flaws / parts / transaction, five tags
 - 🗣 **Three bargaining tiers** — 5%, 12%, 25%, holding the floor
 - 🚫 **Banned-word scan** — 12 words in four groups (counterfeit, off-platform, absolute claims, prohibited), each with a rewrite
@@ -41,7 +41,27 @@ Docker:
 ```bash
 docker build -t xianzhi .
 docker run -p 8000:8000 xianzhi
+
+# or straight from the registry (0.1.0 is pinned, 0.1 / latest follow the newest build)
+docker run --rm -p 8000:8000 ghcr.io/wushiyi105-jpg/xianzhi:0.1.0
 ```
+
+### 📂 Real listing examples
+
+`examples/` holds four listings written the way Xianyu sellers actually write them — condition word in the title, body stuffed with "no repair / no water damage / inspection welcome / no haggling", tags at the end. `examples/out/` is the real output, with the command on line 1 and the run date on line 2:
+
+```bash
+python -m xianzhi --mock quote --file examples/case-01.txt --original 5999
+```
+
+| File | Case | Original | Result |
+|---|---|---|---|
+| `case-01.txt` | iPhone 13 128G, spare phone | 5999 | 90% · list 942 (range 801–1055, floor 753) |
+| `case-02.txt` | Haier 465L fridge, moving out | 4299 | 80% · 4 years · list 495 |
+| `case-03.txt` | Sony A7M3 body only | 12999 | 99% · no flaws · list 4827 |
+| `case-04.txt` | LV Neverfull MM | 12000 | 95% · banned phrase "tenfold refund" · list 1944 |
+
+These four are regression material: "九成新" is not "95新", "no repair / no water damage / no scratches" are negations and not flaws, while "battery health 85%" is a battery deduction — each one has a test.
 
 ## 🤔 Why not just ask a general LLM
 
@@ -49,7 +69,7 @@ A general model says "check recent sales and list around 3,000". That number can
 
 1. **Every number can be recomputed** — `rules.price()` uses `original × first-year retention × decay^(years-1) × condition × (1 - flaws)`, floored at `original × residual floor`. Input 5999, bought 2023, 95%, scratches + battery + no box, and the answer is always 1042. Anyone can reproduce it; "around 3,000" has no intermediate steps.
 2. **Range and floor are separate** — listing range 886–1167, floor 834. Three numbers with three jobs: the range to list, the floor to hold. A single model number gives you no anchor when someone bargains.
-3. **Platform fees reach the net price** — Hongbulin's 10% means listing at 1042 nets 938, 104 less than Xianyu. Only arithmetic makes that visible.
+3. **Platform fees reach the net price** — Hongbulin's 10% means listing at 1042 nets 938, 104 less than Xianyu; Aihuishou is not a fee but a trade-in price, so listing at 942 nets 754 there. Only arithmetic makes that visible.
 4. **Works offline** — pricing, platforms, copy, bargaining, banned words and checklist are all local; without a key you only lose the model's advice paragraphs.
 
 ## 🎯 Use cases
@@ -73,13 +93,13 @@ A general model says "check recent sales and list around 3,000". That number can
 Then only the method is possible, not a number: the tool asks for the price and purchase year. Alternatively use the median of recent sold prices minus 5%–8%.
 
 **How is condition judged?**
-By keywords: unopened, 99% / opened only, 95% / light use, 90% / normal wear, 80% / dents. Default is 95%, and the coefficient is printed so you can change it.
+By the longest keyword hit: unopened, 99% / opened only, 95% / light use, 90% (九成新 too) / normal wear, 80% / dents. "九成新" is 90% (0.58), not 95%. Default is 95%, and the coefficient is printed so you can change it.
 
 **Can flaws be double-counted?**
-They add up but are capped at 30% (`rules.FLAW_CAP`), so "scratched and water-damaged" does not become a giveaway. Each deduction lives in `data/categories.json`.
+They add up but are capped at 30% (`rules.FLAW_CAP`), so "scratched and water-damaged" does not become a giveaway. Each deduction lives in `data/categories.json`. Negations are skipped: "no repair, no water damage, no screen scratches" are the seller saying these problems do not exist, and "two original batteries" is a spare part rather than battery decay; only phrases like "no box" or "no receipt" count, because they state something is missing.
 
 **Are the platform fees accurate?**
-They follow published rates; Xianyu's software fee on some categories, Zhuanzhuan's inspection fee and Hongbulin's authentication fee are called out separately rather than folded into the rate.
+They follow published rates; Xianyu's software fee on some categories, Zhuanzhuan's inspection fee and Hongbulin's authentication fee are called out separately rather than folded into the rate. Aihuishou is a trade-in buyer, so its net price uses an 8/10 discount instead of a fee.
 
 **Will the model change the price?**
 No. `agent.strip_money()` replaces any "N yuan" in model output with a placeholder; prices come only from `rules.price()`.
@@ -90,6 +110,7 @@ No. `agent.strip_money()` replaces any "N yuan" in model output with a placehold
 # 🏷 quote + listing
 python -m xianzhi quote --text "..." --original 5999
 python -m xianzhi quote --file item.txt --original 5999 --save
+python -m xianzhi quote --file item.txt --original 5999 --floor 1800   # own floor, default is 80% of the suggestion
 
 # 🏪 platform fees
 python -m xianzhi platforms
@@ -171,9 +192,15 @@ xianzhi/
 │   └── web.py      # single page + JSON API
 ├── data/
 │   ├── categories.json  # 8 categories + 5 grades + 5 flaws
-│   ├── platforms.json   # 4 platform fees
+│   ├── platforms.json   # 4 platform fees and trade-in discount
 │   └── banned.json      # 12 banned words
-├── tests/test_xianzhi.py
+├── examples/
+│   ├── case-01..04.txt  # real Xianyu listings
+│   └── out/case-01..04.md  # real output, command on line 1
+├── tests/
+│   ├── test_xianzhi.py      # unit: rule functions
+│   └── test_integration.py  # integration: HTTP / model layer / CLI
+├── Dockerfile
 └── assets/demo.gif
 ```
 
@@ -183,7 +210,7 @@ xianzhi/
 python -m unittest discover tests -v
 ```
 
-27 tests cover local logic only: category detection, year parsing, depreciation formula, residual floor, flaw deduction and cap, range ordering, platform net, banned words, title length, bargaining tiers, checklist, offline pipeline and price stripping. CI runs them on 3.10/3.11/3.12.
+62 cases, all offline and dependency-free: 46 unit tests on local rules (category, year parsing, depreciation, residual floor, flaw deduction and cap, negation and condition-word regressions, platform net, banned words, bargaining tiers, checklist, price stripping) and 16 integration tests that run the three chains for real — HTTP behind a real `ThreadingHTTPServer` (200/404 and saving to SQLite), the model layer with a fake model returning this repo's schema (`tips/risks/buyer_questions`) plus money stripping, and the CLI in a subprocess asserting exit codes 0/2 and stderr. CI runs them on 3.10/3.11/3.12 and also builds the image (pushing to GHCR on tags).
 
 ## 👤 Author
 
