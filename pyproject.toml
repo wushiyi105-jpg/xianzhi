@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "xianzhi"
 version = "0.1.0"
-description = "二手转卖 Agent —— 定价、到手价、文案与砍价应答"
+description = "闲置 · 二手定价 · 估价、到手价、挂牌文案与砍价应答"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 

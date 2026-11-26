@@ -43,7 +43,7 @@ docker build -t xianzhi .
 docker run -p 8000:8000 xianzhi
 ```
 
-## 🤔 为什么不能直接问通用大模型
+## 🤔 为什么不用通用大模型直接问
 
 通用模型会说「参考同款成交价,挂 3000 左右」。这个数字既不可复算,也不知道你亏没亏。差别在四点:
 
@@ -107,7 +107,7 @@ python -m xianzhi --json quote --text "..." --original 5999
 python -m xianzhi --mock quote --text "..." --original 5999
 ```
 
-## 🔌 模型配置
+## 🔌 模型接入
 
 兼容 **OpenAI `/chat/completions`** 的任意服务:
 
@@ -189,6 +189,6 @@ python -m unittest discover tests -v
 
 shiyi · GitHub [@wushiyi105-jpg](https://github.com/wushiyi105-jpg) · [wushiyi105@gmail.com](mailto:wushiyi105@gmail.com)
 
-## 📄 许可
+## 📄 License
 
 [MIT](./LICENSE)
