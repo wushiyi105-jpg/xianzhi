@@ -66,6 +66,10 @@ class TestHttpLayer(unittest.TestCase):
         # 行情锚点与偏离提示必须出现在页面脚本里,否则前端只能显示公式口径
         self.assertIn("行情锚点", body)
         self.assertIn("以行情为准", body)
+        # 来源与覆盖率也要在前端露出来,避免「以行情为准」被读成实时抓取
+        self.assertIn("行情来源", body)
+        self.assertIn("未抓取(无样本量)", body)
+        self.assertIn("行情覆盖", body)
 
     def test_status_mock(self):
         status, body = self._get("/api/status")
@@ -181,6 +185,20 @@ class TestCliLayer(unittest.TestCase):
         self.assertIn("偏离 -38%(偏离过大,以行情为准)", r.stdout)
         self.assertIn("爱回收", r.stdout)
         self.assertIn("折价 20%", r.stdout)
+        # 行情是这个工具的地基,来源/日期/样本量/挂价口径必须打在输出里
+        self.assertIn("行情来源:2026-11", r.stdout)
+        self.assertIn("样本量:未抓取(无样本量)", r.stdout)
+        self.assertIn("在售挂价(非成交价)", r.stdout)
+        self.assertIn("非实时", r.stdout)
+
+    def test_quote_formula_warns_no_market(self):
+        # 没有型号命中时必须直说「无行情参考,公式值通常偏低」,不能默默给个低价
+        r = self._run(["--mock", "quote", "--file", "examples/case-02.txt", "--original", "4299"])
+        self.assertEqual(r.returncode, 0)
+        self.assertIn("无行情参考(内置 29 个型号", r.stdout)
+        self.assertIn("公式值通常偏低", r.stdout)
+        self.assertIn("行情覆盖:内置 29 个型号", r.stdout)
+        self.assertIn("其余仅公式参考(可能偏低)", r.stdout)
 
     def test_quote_market_without_original(self):
         r = self._run(["--mock", "quote", "--text", "iPhone 13 128G 95新 电池健康 85% 无拆修"])

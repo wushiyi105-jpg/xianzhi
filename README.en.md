@@ -57,7 +57,7 @@ python -m xianzhi --mock quote --file examples/case-01.txt --original 5999
 | File | Case | Original | Result |
 |---|---|---|---|
 | `case-01.txt` | iPhone 13 128G, spare phone | 5999 | 90% · market anchor 1525 (range 1408–1642, floor 1220); formula price 942, -38% flagged |
-| `case-02.txt` | Haier 465L fridge, moving out | 4299 | model not in table → formula 495 (range 421–555) |
+| `case-02.txt` | Haier 465L fridge, moving out | 4299 | model not in table → formula 1579 (range 1342–1768), flagged "no market reference, formula runs low" |
 | `case-03.txt` | Sony A7M3 body only | 12999 | 99% · no flaws · market anchor 6300 (range 5775–6825) |
 | `case-04.txt` | LV Neverfull MM | 12000 | 95% · banned phrase "tenfold refund" · market anchor 4900; formula 1944, -60% flagged |
 
@@ -227,7 +227,7 @@ xianzhi/
 python -m unittest discover tests -v
 ```
 
-62 cases, all offline and dependency-free: 46 unit tests on local rules (category, year parsing, depreciation, residual floor, flaw deduction and cap, negation and condition-word regressions, platform net, banned words, bargaining tiers, checklist, price stripping) and 16 integration tests that run the three chains for real — HTTP behind a real `ThreadingHTTPServer` (200/404 and saving to SQLite), the model layer with a fake model returning this repo's schema (`tips/risks/buyer_questions`) plus money stripping, and the CLI in a subprocess asserting exit codes 0/2 and stderr. CI runs them on 3.10/3.11/3.12 and also builds the image (pushing to GHCR on tags).
+81 cases, all offline and dependency-free: 62 unit tests on local rules (category, year parsing, depreciation, residual floor, flaw deduction and cap, negation and condition-word regressions, platform net, banned words, bargaining tiers, checklist, price stripping, market anchor and gap flag, market provenance, appliance residual calibration) and 19 integration tests that run the three chains for real — HTTP behind a real `ThreadingHTTPServer` (200/404 and saving to SQLite), the model layer with a fake model returning this repo's schema (`tips/risks/buyer_questions`) plus money stripping, and the CLI in a subprocess asserting exit codes 0/2 and stderr. CI runs them on 3.10/3.11/3.12 and also builds the image (pushing to GHCR on tags).
 
 ## 👤 Author
 

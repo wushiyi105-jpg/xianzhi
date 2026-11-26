@@ -304,6 +304,82 @@ class TestMarketAnchor(unittest.TestCase):
         return (cat, rules.detect_condition(text), rules.detect_years(text), rules.detect_flaws(text))
 
 
+class TestMarketProvenance(unittest.TestCase):
+    """行情表是整个工具的地基,每一行都要交代来源、日期、样本量、挂价还是成交价。"""
+
+    def test_every_row_has_meta(self):
+        models = rules.load("market.json")["models"]
+        for m in models:
+            meta = m.get("meta")
+            self.assertIsInstance(meta, dict, "%s 缺 meta" % m["name"])
+            for k in ("collected", "platform", "basis", "samples", "source_type"):
+                self.assertIn(k, meta, "%s 缺 %s" % (m["name"], k))
+
+    def test_basis_is_asking_not_deal(self):
+        cfg = rules.load("market.json")
+        self.assertEqual(cfg["provenance"]["basis"], "asking")
+        self.assertEqual(cfg["provenance"]["basis_label"], "在售价(非成交价)")
+        # 没抓取过就没有样本量,宁可 null 也不编
+        self.assertIsNone(cfg["provenance"]["samples"])
+        self.assertIn("未抓取", cfg["provenance"]["method"])
+        self.assertIn("非实时", cfg["provenance"]["method"])
+
+    def test_coverage_is_stated(self):
+        cov = rules.market_coverage()
+        self.assertEqual(cov["models"], len(rules.load("market.json")["models"]))
+        self.assertIn("家电", cov["categories"])
+        self.assertIn("手机/平板", cov["categories"])
+        self.assertEqual(cov["provenance"]["collected"], "2026-11")
+
+    def test_formula_path_says_no_market_and_low(self):
+        text = "海尔 465L 冰箱 用了4年 8成新 有磕碰 制冷正常"
+        p, model = rules.pricing(text, *TestMarketAnchor._ctx(text), original=4299)
+        self.assertIsNone(model)
+        hint = p["market_hint"]
+        self.assertIn("无行情参考", hint)
+        self.assertIn("公式值通常偏低", hint)
+        self.assertIn(str(rules.market_coverage()["models"]), hint)
+
+
+class TestFormulaResidual(unittest.TestCase):
+    """没有行情的品类只能靠公式,公式不能把家电算成废铁价(残值 11%)。
+
+    家电单独校准:整机残值按 3 成以上估,成色差价的压缩系数比数码小。
+    """
+
+    FRIDGE = "海尔 465L 冰箱 2021年买的 9成新 正常使用痕迹 制冷正常"
+
+    def test_appliance_residual_in_real_band(self):
+        p, _ = rules.pricing(self.FRIDGE, *TestMarketAnchor._ctx(self.FRIDGE), original=4299)
+        self.assertEqual(p["source"], "formula")
+        # 现实里 4299 的冰箱用四五年,二手挂价 1400–1900
+        self.assertGreaterEqual(p["suggested"], 1300)
+        self.assertLessEqual(p["suggested"], 2000)
+        self.assertGreaterEqual(p["residual_pct"], 0.30)
+
+    def test_appliance_condition_squash_softens_coef(self):
+        cat = rules.load("categories.json")["categories"][3]
+        self.assertEqual(cat["key"], "appliance")
+        cond = rules.detect_condition(self.FRIDGE)
+        p, _ = rules.pricing(self.FRIDGE, *TestMarketAnchor._ctx(self.FRIDGE), original=4299)
+        # 9成新原系数 0.58,家电压缩后应明显更高
+        self.assertGreater(p["condition_coef"], cond["coef"])
+
+    def test_floor_hit_is_reported(self):
+        text = "老式冰箱 2010年买的 8成新 有磕碰"
+        p, _ = rules.pricing(text, *TestMarketAnchor._ctx(text), original=3000)
+        self.assertTrue(p["floor_hit"])
+        # 下限保护的是残值基数(原价 30%),成色系数仍在其上再打折
+        self.assertEqual(p["base"], 900)
+        self.assertLess(p["residual_pct"], 0.30)
+
+    def test_phone_formula_unchanged(self):
+        # 手机不该被家电校准牵连:原价 5999 的 iPhone 13 公式仍给 942 上下
+        text = "iPhone 13 128G 9成新 用了4年 电池健康 92%"
+        p, _ = rules.pricing(text, *TestMarketAnchor._ctx(text), original=5999)
+        self.assertLess(p["formula_suggested"], 1200)
+
+
 if __name__ == "__main__":
     unittest.main()
 

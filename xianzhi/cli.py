@@ -37,6 +37,11 @@ def render(r):
             lo, hi = p["market_base"]
             lines.append("  行情锚点:%s(%s)95新无瑕疵 %d–%d 元"
                          % (p["model"], (p["storage"] + "G") if p.get("storage") else "默认容量", lo, hi))
+            meta = p.get("market_meta") or {}
+            lines.append("  行情来源:%s · %s · 样本量:%s · %s(非成交价)"
+                         % (meta.get("collected", "?"), meta.get("platform", "?"),
+                            "未抓取(无样本量)" if meta.get("samples") is None else meta["samples"],
+                            "在售挂价" if meta.get("basis") == "asking" else "成交价"))
             lines.append("  成色 ×%.2f,瑕疵 -%d%% → 建议挂 %d 元(区间 %d–%d),底价 %d 元%s"
                          % (p["condition_adj"], p["flaw_deduct"] * 100, p["suggested"],
                             p["low"], p["high"], p["floor_price"],
@@ -45,9 +50,11 @@ def render(r):
                 gap = p["formula_gap"] * 100
                 lines.append("  原价公式参考:%d 元%s"
                              % (p["formula_suggested"],
-                                "，偏离 %+.0f%%(偏离过大,以行情为准)" % gap if p.get("gap_alert")
+                                ",偏离 %+.0f%%(偏离过大,以行情为准)" % gap if p.get("gap_alert")
                                 else "(与行情接近)"))
             lines.append("  口径:同型号当前二手行情 × 成色 × 瑕疵,不按当年买价折旧")
+            lines.append("  注意:行情为 %s 整理的估算区间,非实时,成交通常比挂价低 5%%–8%%"
+                         % meta.get("collected", "?"))
         else:
             lines.append("  原价 %d → 残值基数 %d(首年 %.0f%%,其后每年 ×%.2f,下限 %.0f%%)"
                          % (p["original"], p["base"], r["category"]["year1"] * 100,
@@ -57,8 +64,16 @@ def render(r):
                             p["low"], p["high"], p["floor_price"],
                             "(按你填的底价)" if p.get("floor_from_user") else ""))
             lines.append("  公式:" + p["formula"])
-            if not r.get("model"):
-                lines.append("  注:型号不在行情表里,只能按原价折旧;补一句具体型号可更贴近行情")
+            if p.get("residual_pct") is not None:
+                lines.append("  残值率:原价的 %.0f%%%s"
+                             % (p["residual_pct"] * 100,
+                                "(已触到品类下限,实际成交通常更高)" if p.get("floor_hit") else ""))
+            if p.get("market_hint"):
+                lines.append("  ⚠️ " + p["market_hint"])
+            cov = r.get("market_coverage") or {}
+            if cov:
+                lines.append("  行情覆盖:内置 %d 个型号(%s),其余仅公式参考(可能偏低)"
+                             % (cov["models"], "、".join(cov["categories"])))
         lines.append("")
         lines.append("🏪 各平台到手(按建议价)")
         for x in r["platforms"]:

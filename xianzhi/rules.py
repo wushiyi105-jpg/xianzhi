@@ -94,8 +94,11 @@ def detect_flaws(text):
 
 def price(original, category, condition, years, flaws, floor=None):
     base = original * category["year1"] * (category["annual"] ** max(0, years - 1))
-    base = max(base, original * category["floor"])
-    coef = condition["coef"]
+    floor_base = original * category["floor"]
+    floor_hit = base < floor_base
+    base = max(base, floor_base)
+    # 成色系数按品类压缩:家电/家具的成色差价比数码小,直接用 0.58 会二次打折。
+    coef = 1 - (1 - condition["coef"]) * category.get("condition_squash", 1.0)
     deduct = min(FLAW_CAP, sum(f["deduct"] for f in flaws))
     suggested = base * coef * (1 - deduct)
     low = suggested * 0.85
@@ -104,13 +107,15 @@ def price(original, category, condition, years, flaws, floor=None):
     return {
         "original": original,
         "base": round(base),
-        "condition_coef": coef,
+        "condition_coef": round(coef, 3),
         "flaw_deduct": round(deduct, 2),
         "suggested": round(suggested),
         "low": round(low),
         "high": round(high),
         "floor_price": floor_price,
         "floor_from_user": bool(floor),
+        "floor_hit": floor_hit,
+        "residual_pct": round(suggested / original, 3) if original else None,
         "formula": "原价 × %.2f(首年留存)× %.2f^%d(年衰减)× %.2f(成色)× %.2f(瑕疵),下限为原价 %.0f%%"
                    % (category["year1"], category["annual"], max(0, years - 1), coef, 1 - deduct,
                       category["floor"] * 100),
@@ -231,7 +236,25 @@ def market_price(model, condition, flaws, storage=None):
         "suggested": round((lo + hi) / 2 * k),
         "low": round(lo * k),
         "high": round(hi * k),
+        "market_meta": model.get("meta"),
     }
+
+
+def market_coverage():
+    """行情表覆盖率:多少型号、覆盖哪些品类。UI 上要把这个数说清楚。"""
+    cfg = load("market.json")
+    cats = sorted({m["category"] for m in cfg["models"]})
+    names = {c["key"]: c["name"] for c in load("categories.json")["categories"]}
+    return {"models": len(cfg["models"]),
+            "categories": [names.get(c, c) for c in cats],
+            "provenance": cfg.get("provenance")}
+
+
+def no_market_hint():
+    """没有型号命中时的提示:公式值通常偏低,叫用户自己去搜同款成交价。"""
+    cov = market_coverage()
+    return ("无行情参考(内置 %d 个型号,本型号不在其中):公式值通常偏低,"
+            "建议先搜同款二手成交价,或用 --original 给准原价" % cov["models"])
 
 
 def pricing(text, category, condition, years, flaws, original=None, floor=None, this_year=2026):
@@ -258,6 +281,7 @@ def pricing(text, category, condition, years, flaws, original=None, floor=None, 
     elif formula:
         info = dict(formula)
         info["source"] = "formula"
+        info["market_hint"] = no_market_hint()
         info["floor_price"] = round(floor) if floor else round(info["suggested"] * 0.80)
         info["floor_from_user"] = bool(floor)
     else:
@@ -282,6 +306,7 @@ def analyze(text, original=None, this_year=2026, floor=None):
             "model": model["name"] if model else None,
             "condition": cond, "years": years, "flaws": flaws,
             "price": price_info, "platforms": platform_net(price_info["suggested"]) if price_info else [],
+            "market_coverage": market_coverage(),
             "banned": banned(text), "checklist": checklist(text),
             "listing": listing(cat, cond, flaws, price_info, orig) if price_info else None,
             "bargain": bargaining(price_info["suggested"], price_info["floor_price"]) if price_info else []}

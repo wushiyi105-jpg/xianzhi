@@ -79,13 +79,21 @@ $('#btn').onclick=async()=>{
       h+='<div class="price">'+r.price.suggested+' 元</div>';
       h+='<div class="hint">区间 '+r.price.low+'–'+r.price.high+' · 底价 '+r.price.floor_price+(r.price.floor_from_user?'(你填的)':'')+'</div>';
       if(r.price.source==='market'){
+        var mt=r.price.market_meta||{};
         h+='<div class="hint" style="margin-top:8px">行情锚点 '+esc(r.price.model)+(r.price.storage?' '+r.price.storage+'G':'')+' · 95新无瑕疵 '+r.price.market_base[0]+'–'+r.price.market_base[1]+' 元 · 成色 ×'+r.price.condition_adj.toFixed(2)+' · 瑕疵 -'+Math.round(r.price.flaw_deduct*100)+'%</div>';
+        h+='<div class="hint">行情来源 '+esc(mt.collected||'?')+' · '+esc(mt.platform||'?')+' · 样本量 '+(mt.samples===null||mt.samples===undefined?'未抓取(无样本量)':mt.samples)+' · 在售挂价(非成交价)</div>';
         h+='<div class="hint">口径:同型号当前二手行情 × 成色 × 瑕疵,不按当年买价折旧</div>';
+        h+='<div class="hint">注意:行情为 '+esc(mt.collected||'?')+' 整理的估算区间,非实时;成交通常比挂价低 5%–8%</div>';
         if(r.price.formula_suggested!==undefined){
           h+='<div class="hint">原价公式参考 '+r.price.formula_suggested+' 元'+(r.price.gap_alert?'(偏离 '+Math.round(r.price.formula_gap*100)+'%,以行情为准)':'(与行情接近)')+'</div>';
         }
       }else{
         h+='<div class="hint" style="margin-top:8px">残值基数 '+r.price.base+' · 原价公式(型号不在行情表里,按原价折旧)</div>';
+        if(r.price.residual_pct!==undefined){
+          h+='<div class="hint">残值率 原价的 '+Math.round(r.price.residual_pct*100)+'%'+(r.price.floor_hit?'(已触到品类下限,实际成交通常更高)':'')+'</div>';
+        }
+        if(r.price.market_hint){h+='<div class="hint" style="color:#b45309">⚠️ '+esc(r.price.market_hint)+'</div>';}
+        if(r.market_coverage){h+='<div class="hint">行情覆盖 内置 '+r.market_coverage.models+' 个型号('+esc(r.market_coverage.categories.join('、'))+'),其余仅公式参考(可能偏低)</div>';}
       }
       h+='<h3>平台到手</h3><table><tr><th>平台</th><th>费率</th><th>到手</th><th>说明</th></tr>';
       r.platforms.forEach(x=>{h+='<tr><td>'+esc(x.name)+'</td><td>'+(x.fee*100).toFixed(1)+'%'+(x.discount?' · 折价 '+(x.discount*100).toFixed(0)+'%':'')+'</td><td>'+x.net+' 元</td><td class="hint">'+esc(x.days)+' · '+esc(x.extra)+'</td></tr>';});
