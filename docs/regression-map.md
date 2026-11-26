@@ -16,6 +16,7 @@ python -m unittest tests.test_xianzhi.TestMarketAnchor -v
 | #8 | 定价锚点错了（原价折旧给出 942，真实行情 1500–2200） | `TestMarketAnchor.test_iphone13_lands_in_real_band`<br>`TestMarketAnchor.test_market_price_works_without_original`<br>`TestMarketAnchor.test_unknown_model_falls_back_to_formula`<br>`TestMarketAnchor.test_gap_alert_when_formula_far_off`<br>`TestMarketAnchor.test_storage_changes_price`<br>`TestMarketAnchor.test_longest_alias_wins`<br>`TestMarketAnchor.test_condition_adjusts_market_price`<br>`TestMarketAnchor.test_seed_table_is_broad_enough`<br>`TestHttpLayer.test_quote_numbers`<br>`TestHttpLayer.test_quote_flags_formula_gap`<br>`TestCliLayer.test_quote_file_ok`<br>`TestCliLayer.test_quote_market_without_original` |
 | #9 | 行情表没交代可信度：来源/样本量/挂价口径/覆盖率缺失，型号缺失时只给裸数字 | `TestMarketProvenance.test_every_row_has_meta`<br>`TestMarketProvenance.test_basis_is_asking_not_deal`<br>`TestMarketProvenance.test_coverage_is_stated`<br>`TestMarketProvenance.test_formula_path_says_no_market_and_low`<br>`TestCliLayer.test_quote_file_ok`（行情来源/样本量/非实时）<br>`TestCliLayer.test_quote_formula_warns_no_market`<br>`TestHttpLayer.test_page_served`（行情来源/行情覆盖） |
 | #10 | 公式对无行情品类系统性偏低：4299 冰箱算出 495（残值 11%） | `TestFormulaResidual.test_appliance_residual_in_real_band`<br>`TestFormulaResidual.test_appliance_condition_squash_softens_coef`<br>`TestFormulaResidual.test_floor_hit_is_reported`<br>`TestFormulaResidual.test_phone_formula_unchanged` |
+| #11 | 「以行情为准」把估算抬成事实 | `TestCliLayer.test_quote_file_ok`（并排句 + `assertNotIn("以行情为准")` + `(经验值,非统计)`）<br>`TestHttpLayer.test_page_served`（页面脚本同样不得出现该措辞） |
 
 ## 为什么这样对应
 
@@ -27,5 +28,6 @@ python -m unittest tests.test_xianzhi.TestMarketAnchor -v
 - **#8 十二条**：前八条在规则层锁住「行情优先」的全部行为（真实区间、无原价、型号缺失、偏离提示、容量分档、别名最长命中、成色单调、种子表规模），后四条在 HTTP/CLI 层锁住接口输出。
 - **#9 七条**：四条在规则层/数据层（每行 meta 齐全、基准是 asking 不是成交价、样本量留 null、覆盖率与品类名、无型号时的提示文案含型号数与「公式值通常偏低」），三条在入口层（CLI 打出行情来源与样本量、CLI 打无行情提示、网页脚本含行情来源与覆盖）。
 - **#10 四条**：家电残值落回 1300–2000 且 ≥30%、家电压缩后的成色系数高于原系数、触底时 `floor_hit` 为真且基数等于原价 30%、手机公式价不被牵连（仍 <1200 保护 942 那个量级）。
+- **#11 两条入口层断言**：CLI 必须打出并排句「公式折旧…行情估算…两者均为估算」，且**不许**出现「以行情为准」；网页脚本同理。措辞属于输出契约，所以钉在入口层而不是规则层。
 
 规则层测「算得对不对」，入口层测「接上之后还对不对」；两层都断，才算这个 bug 真的不会回来。

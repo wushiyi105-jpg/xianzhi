@@ -63,9 +63,10 @@ class TestHttpLayer(unittest.TestCase):
         # 页面必须自己渲染区间与到手价,这两个数是本仓的核心卖点
         self.assertIn("区间", body)
         self.assertIn("平台到手", body)
-        # 行情锚点与偏离提示必须出现在页面脚本里,否则前端只能显示公式口径
-        self.assertIn("行情锚点", body)
-        self.assertIn("以行情为准", body)
+        # 行情估算与公式折旧的对比必须出现在页面脚本里,且不得写成「以行情为准」
+        self.assertIn("行情区间", body)
+        self.assertIn("两者均为估算,建议按同款二手实际成交价确认", body)
+        self.assertNotIn("以行情为准", body)
         # 来源与覆盖率也要在前端露出来,避免「以行情为准」被读成实时抓取
         self.assertIn("行情来源", body)
         self.assertIn("未抓取(无样本量)", body)
@@ -180,9 +181,13 @@ class TestCliLayer(unittest.TestCase):
         r = self._run(["--mock", "quote", "--file", "examples/case-01.txt", "--original", "5999"])
         self.assertEqual(r.returncode, 0)
         self.assertIn("建议挂 1525 元", r.stdout)
-        self.assertIn("行情锚点:iPhone 13(128G)95新无瑕疵 1800–2100 元", r.stdout)
+        self.assertIn("行情区间:iPhone 13(128G)95新无瑕疵 1800–2100 元", r.stdout)
         # 公式价与行情偏离时必须让用户看见,不能只打印一个新数字
-        self.assertIn("偏离 -38%(偏离过大,以行情为准)", r.stdout)
+        self.assertIn("公式折旧 942 元 · 行情估算 1525 元 · 偏差 -38%", r.stdout)
+        self.assertIn("两者均为估算,建议按同款二手实际成交价确认", r.stdout)
+        # 行情是估算,不能再出现「以行情为准」这种把估算抬成事实的措辞
+        self.assertNotIn("以行情为准", r.stdout)
+        self.assertIn("(经验值,非统计)", r.stdout)
         self.assertIn("爱回收", r.stdout)
         self.assertIn("折价 20%", r.stdout)
         # 行情是这个工具的地基,来源/日期/样本量/挂价口径必须打在输出里
@@ -203,7 +208,7 @@ class TestCliLayer(unittest.TestCase):
     def test_quote_market_without_original(self):
         r = self._run(["--mock", "quote", "--text", "iPhone 13 128G 95新 电池健康 85% 无拆修"])
         self.assertEqual(r.returncode, 0)
-        self.assertIn("按行情锚点(iPhone 13)", r.stdout)
+        self.assertIn("按行情估算(iPhone 13)", r.stdout)
         self.assertNotIn("原价 0", r.stdout)
 
     def test_quote_no_input_exit_2(self):

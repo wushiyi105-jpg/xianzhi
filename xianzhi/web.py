@@ -80,12 +80,12 @@ $('#btn').onclick=async()=>{
       h+='<div class="hint">区间 '+r.price.low+'–'+r.price.high+' · 底价 '+r.price.floor_price+(r.price.floor_from_user?'(你填的)':'')+'</div>';
       if(r.price.source==='market'){
         var mt=r.price.market_meta||{};
-        h+='<div class="hint" style="margin-top:8px">行情锚点 '+esc(r.price.model)+(r.price.storage?' '+r.price.storage+'G':'')+' · 95新无瑕疵 '+r.price.market_base[0]+'–'+r.price.market_base[1]+' 元 · 成色 ×'+r.price.condition_adj.toFixed(2)+' · 瑕疵 -'+Math.round(r.price.flaw_deduct*100)+'%</div>';
+        h+='<div class="hint" style="margin-top:8px">行情区间 '+esc(r.price.model)+(r.price.storage?' '+r.price.storage+'G':'')+' · 95新无瑕疵 '+r.price.market_base[0]+'–'+r.price.market_base[1]+' 元 · 成色 ×'+r.price.condition_adj.toFixed(2)+' · 瑕疵 -'+Math.round(r.price.flaw_deduct*100)+'%</div>';
         h+='<div class="hint">行情来源 '+esc(mt.collected||'?')+' · '+esc(mt.platform||'?')+' · 样本量 '+(mt.samples===null||mt.samples===undefined?'未抓取(无样本量)':mt.samples)+' · 在售挂价(非成交价)</div>';
         h+='<div class="hint">口径:同型号当前二手行情 × 成色 × 瑕疵,不按当年买价折旧</div>';
-        h+='<div class="hint">注意:行情为 '+esc(mt.collected||'?')+' 整理的估算区间,非实时;成交通常比挂价低 5%–8%</div>';
+        h+='<div class="hint">注意:行情为 '+esc(mt.collected||'?')+' 整理的估算区间,非实时;成交通常比挂价低 5%–8%(经验值,非统计)</div>';
         if(r.price.formula_suggested!==undefined){
-          h+='<div class="hint">原价公式参考 '+r.price.formula_suggested+' 元'+(r.price.gap_alert?'(偏离 '+Math.round(r.price.formula_gap*100)+'%,以行情为准)':'(与行情接近)')+'</div>';
+          h+='<div class="hint">参考对比 公式折旧 '+r.price.formula_suggested+' 元 · 行情估算 '+r.price.suggested+' 元 · 偏差 '+Math.round(r.price.formula_gap*100)+'%'+(r.price.gap_alert?' · 两者均为估算,建议按同款二手实际成交价确认':' · 两者均为估算')+'</div>';
         }
       }else{
         h+='<div class="hint" style="margin-top:8px">残值基数 '+r.price.base+' · 原价公式(型号不在行情表里,按原价折旧)</div>';

@@ -15,7 +15,7 @@ def offline(r):
         tips.append("同城优先,大件写自提;数码写「当面验机,验完不退」。")
     else:
         tips.append("先补原价和购入年份,否则只能给方法,给不了价。")
-        tips.append("按同型号近 7 天成交价的中位数,再减 5%–8% 作为挂牌价。")
+        tips.append("按同款二手实际成交价的中位数,再减 5%–8% 作为挂牌价(经验值,非统计)。")
 
     if r["banned"]:
         risks.append("描述里有 %d 个违禁/导流词:会被限流或下架,先删。" % len(r["banned"]))

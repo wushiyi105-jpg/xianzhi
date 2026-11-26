@@ -70,7 +70,7 @@ Real used prices for 3C gear are set by **what the same model sells for today**,
 So pricing has two layers:
 
 1. `data/market.json` holds current second-hand ranges for 29 popular models (iPhone 13/14/15, Xiaomi 13/14, Mate60, iPad Air5, MacBook Air M1, A7M3, EOS R6, Dyson V8, LV Neverfull…). The baseline is the **95%-new, flaw-free private-sale price**, split by storage, hand-compiled for Nov 2026 — not scraped.
-2. Pricing is market-first: `range midpoint × condition adjustment × (1 - flaws)`, falling back to the model's default tier when storage does not match. Only models missing from the table fall back to original-price depreciation; when both exist, the formula price is computed too and a deviation above 30% is flagged as "too far off, market wins" — the basis is never switched silently.
+2. Pricing is market-first: `range midpoint × condition adjustment × (1 - flaws)`, falling back to the model's default tier when storage does not match. Only models missing from the table fall back to original-price depreciation; when both exist the formula price is computed too and shown side by side: "formula 942 · market estimate 1525 · gap -38% · both are estimates — confirm with the actual sold price for the same model". Neither number is presented as the fact.
 
 ```bash
 # model in the table: no original price needed
@@ -81,7 +81,7 @@ python -m xianzhi --mock quote --text "iPhone 13 128G 95新 电池健康 85% 无
 
 A general model says "check recent sales and list around 3,000". That number cannot be recomputed and you cannot tell whether you lost money. Four differences:
 
-1. **Right anchor, believable number** — used 3C gear is priced by today's market for the same model, not by linear depreciation. The original-price formula (`original × first-year retention × decay^(years-1) × condition × (1 - flaws)`) is kept as a reference basis and explicitly overridden when it deviates more than 30%. An iPhone 13 128G at 90% gets 1525 instead of 942; an LV Neverfull gets 4900 instead of 1944.
+1. **Right anchor, believable number** — used 3C gear is priced by today's market for the same model, not by linear depreciation. The original-price formula (`original × first-year retention × decay^(years-1) × condition × (1 - flaws)`) is kept as a reference basis; when it deviates more than 30% both numbers are shown with a note that both are estimates. An iPhone 13 128G at 90% gets 1525 instead of 942; an LV Neverfull gets 4900 instead of 1944.
 2. **Range and floor are separate** — list 1525, range 1408–1642, floor 1220. Three numbers with three jobs: the range to list, the floor to hold. A single model number gives you no anchor when someone bargains.
 3. **Platform fees reach the net price** — the same iPhone 13 at 1525 nets 1525 on Xianyu, 1502 on Zhuangzhuan, 1372 on Hongbulin (10% commission), 1220 on Aihuishou (trade-in at 80%). Only arithmetic makes that visible.
 4. **Works offline** — pricing, platforms, copy, bargaining, banned words and checklist are all local; without a key you only lose the model's advice paragraphs.
@@ -107,7 +107,7 @@ A general model says "check recent sales and list around 3,000". That number can
 If the model is in the market table (29 popular models) you get a price without one — "iPhone 13 128G 95新" is enough. Only an unknown model with no original price triggers the prompt for price and purchase year.
 
 **Where do the ranges come from?**
-Hand-compiled Nov 2026 private-sale estimates, stated in `data/market.json` under `note` — not presented as scraped live data. Edit that file to fit your local market; the pricing logic stays the same.
+Hand-compiled Nov 2026 listing-price estimates, stated in `data/market.json` under `note` — not scraped, no sample size; "sold prices usually run 5%–8% below asking" is a rule of thumb, not a statistic. Edit that file to fit your local market; the pricing logic stays the same.
 
 **How is condition judged?**
 By the longest keyword hit: unopened, 99% / opened only, 95% / light use, 90% (九成新 too) / normal wear, 80% / dents. "九成新" is 90% (0.58), not 95%. Default is 95%, and the coefficient is printed so you can change it.

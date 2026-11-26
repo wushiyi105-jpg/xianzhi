@@ -34,12 +34,13 @@ def summary(r):
         return "没识别到具体型号,也没给原价:补一句「原价 3299,2023 年买的」就能算。"
     head = "%s %s,用了约 %d 年," % (r["category"]["name"], r["condition"]["name"], r["years"])
     if p.get("source") == "market":
-        head += "按行情锚点(%s)," % p["model"]
+        head += "按行情估算(%s)," % p["model"]
     tail = ("建议挂 %d 元(区间 %d–%d),底价 %d 元。"
             % (p["suggested"], p["low"], p["high"], p["floor_price"]))
     if p.get("gap_alert"):
-        tail += (" 原价公式只给 %d 元(偏离 %+d%%),以行情为准。"
-                 % (p["formula_suggested"], round(p["formula_gap"] * 100)))
+        tail += (" 公式折旧 %d 元 · 行情估算 %d 元 · 偏差 %+d%%,两者均为估算,"
+                 "建议按同款二手实际成交价确认。"
+                 % (p["formula_suggested"], p["suggested"], round(p["formula_gap"] * 100)))
     return head + tail
 
 

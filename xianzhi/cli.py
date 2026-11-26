@@ -35,7 +35,7 @@ def render(r):
         lines.append("💰 定价")
         if p.get("source") == "market":
             lo, hi = p["market_base"]
-            lines.append("  行情锚点:%s(%s)95新无瑕疵 %d–%d 元"
+            lines.append("  行情区间:%s(%s)95新无瑕疵 %d–%d 元"
                          % (p["model"], (p["storage"] + "G") if p.get("storage") else "默认容量", lo, hi))
             meta = p.get("market_meta") or {}
             lines.append("  行情来源:%s · %s · 样本量:%s · %s(非成交价)"
@@ -48,13 +48,11 @@ def render(r):
                             "(按你填的底价)" if p.get("floor_from_user") else ""))
             if p.get("formula_suggested") is not None:
                 gap = p["formula_gap"] * 100
-                lines.append("  原价公式参考:%d 元%s"
-                             % (p["formula_suggested"],
-                                ",偏离 %+.0f%%(偏离过大,以行情为准)" % gap if p.get("gap_alert")
-                                else "(与行情接近)"))
-            lines.append("  口径:同型号当前二手行情 × 成色 × 瑕疵,不按当年买价折旧")
-            lines.append("  注意:行情为 %s 整理的估算区间,非实时,成交通常比挂价低 5%%–8%%"
-                         % meta.get("collected", "?"))
+                fmt = rules.GAP_COMPARE_FMT if p.get("gap_alert") else rules.GAP_CLOSE_FMT
+                lines.append("  参考对比:" + fmt % (p["formula_suggested"], p["suggested"], gap))
+            lines.append("  口径:同型号当前二手行情 × 成色 × 瑕疵,不按当年买价折旧(行情为估算,非实测)")
+            lines.append("  注意:行情为 %s 整理的估算区间,非实时;%s"
+                         % (meta.get("collected", "?"), rules.DEAL_HINT))
         else:
             lines.append("  原价 %d → 残值基数 %d(首年 %.0f%%,其后每年 ×%.2f,下限 %.0f%%)"
                          % (p["original"], p["base"], r["category"]["year1"] * 100,
