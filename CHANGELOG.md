@@ -9,4 +9,4 @@
 - 数字守卫：引用了输入里没有的数字整句丢弃
 - Alembic `0001_init` + `migrate` 子命令（0.x 旧库先备份再转 cents 表）
 - CLI：quote / listing / history / migrate / serve / doctor；Web 单页 + `/health`
-- 测试 21 条，覆盖迁移、守卫、公式边界
+- 测试 26 条，覆盖迁移、守卫、公式边界
