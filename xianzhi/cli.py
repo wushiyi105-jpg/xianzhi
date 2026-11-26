@@ -36,15 +36,17 @@ def render(r):
         lines.append("  原价 %d → 残值基数 %d(首年 %.0f%%,其后每年 ×%.2f,下限 %.0f%%)"
                      % (p["original"], p["base"], r["category"]["year1"] * 100,
                         r["category"]["annual"], r["category"]["floor"] * 100))
-        lines.append("  成色 ×%.2f,瑕疵 -%d%% → 建议挂 %d 元(区间 %d–%d),底价 %d 元"
+        lines.append("  成色 ×%.2f,瑕疵 -%d%% → 建议挂 %d 元(区间 %d–%d),底价 %d 元%s"
                      % (p["condition_coef"], p["flaw_deduct"] * 100, p["suggested"],
-                        p["low"], p["high"], p["floor_price"]))
+                        p["low"], p["high"], p["floor_price"],
+                        "(按你填的底价)" if p.get("floor_from_user") else ""))
         lines.append("  公式:" + p["formula"])
         lines.append("")
         lines.append("🏪 各平台到手(按建议价)")
         for x in r["platforms"]:
-            lines.append("  · %s 费率 %.1f%% → 到手 %d 元(%s, %s)"
-                         % (x["name"], x["fee"] * 100, x["net"], x["days"], x["extra"]))
+            tail = " 折价 %.0f%%" % (x["discount"] * 100) if x.get("discount") else ""
+            lines.append("  · %s 费率 %.1f%%%s → 到手 %d 元(%s, %s)"
+                         % (x["name"], x["fee"] * 100, tail, x["net"], x["days"], x["extra"]))
         lines.append("")
 
     if r["listing"]:
@@ -91,8 +93,15 @@ def render(r):
 
 def _text(args):
     if args.file:
-        with open(args.file, encoding="utf-8") as f:
-            return f.read()
+        try:
+            with open(args.file, encoding="utf-8") as f:
+                return f.read()
+        except UnicodeError:
+            print("❌ 文件不是 UTF-8 编码:%s" % args.file, file=sys.stderr)
+            sys.exit(2)
+        except OSError as e:
+            print("❌ 读不到文件 %s:%s" % (args.file, e.strerror or e), file=sys.stderr)
+            sys.exit(2)
     if args.text:
         return args.text
     if not sys.stdin.isatty():
@@ -107,7 +116,7 @@ def cmd_quote(args):
         sys.exit(2)
     db = dbmod.Database(args.db) if args.db else dbmod.Database()
     r = agent.quote(text, original=args.original, config=llm.config_from_args(args),
-                    db=db, force_mock=args.mock, save=args.save)
+                    db=db, force_mock=args.mock, save=args.save, floor=args.floor)
     if args.json:
         print(json.dumps(r, ensure_ascii=False, indent=2))
         return
@@ -165,6 +174,7 @@ def build_parser():
     qp.add_argument("--text", help="商品描述:品类、成色、购买时间、瑕疵")
     qp.add_argument("--file", help="从文件读")
     qp.add_argument("--original", type=float, help="原价,元")
+    qp.add_argument("--floor", type=float, help="自定底价,元(留空按建议价 8 折)")
     qp.add_argument("--save", action="store_true")
     qp.set_defaults(func=cmd_quote)
 

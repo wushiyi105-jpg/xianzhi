@@ -62,8 +62,8 @@ def _model_advice(r, config):
             "buyer_questions": [strip_money(str(x)) for x in d.get("buyer_questions", [])][:6]}
 
 
-def quote(text, original=None, config=None, db=None, force_mock=False, save=False):
-    r = rules.analyze(text, original=original)
+def quote(text, original=None, config=None, db=None, force_mock=False, save=False, floor=None):
+    r = rules.analyze(text, original=original, floor=floor)
     r["text"] = text
     if _use_model(config, force_mock):
         layers = _model_advice(r, config)

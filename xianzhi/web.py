@@ -71,15 +71,15 @@ $('#btn').onclick=async()=>{
   const el=$('#res');el.classList.remove('show');load($('#btn'),true);
   try{
     const p=await fetch('/api/quote',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({text:$('#text').value,original:$('#original').value})});
+      body:JSON.stringify({text:$('#text').value,original:$('#original').value,floor:$('#floor').value})});
     const r=await p.json(); if(r.error) throw new Error(r.error);
     let h='<div class="card"><div class="hint">'+(r.mode==='model'?'模型已连接':'离线模式')+(r.saved_id?' · 已入库 #'+r.saved_id:'')+'</div>';
     h+='<p style="font-size:16px;line-height:1.7">'+esc(r.verdict)+'</p>';
     if(r.price){
-      h+='<div class="price">'+r.price.suggested+' 元</div><div class="hint">区间 '+r.price.low+'–'+r.price.high+' · 底价 '+r.price.floor_price+' · 残值基数 '+r.price.base+'</div>';
+      h+='<div class="price">'+r.price.suggested+' 元</div><div class="hint">区间 '+r.price.low+'–'+r.price.high+' · 底价 '+r.price.floor_price+(r.price.floor_from_user?'(你填的)':'')+' · 残值基数 '+r.price.base+'</div>';
       h+='<div class="hint" style="margin-top:8px">'+esc(r.price.formula)+'</div>';
       h+='<h3>平台到手</h3><table><tr><th>平台</th><th>费率</th><th>到手</th><th>说明</th></tr>';
-      r.platforms.forEach(x=>{h+='<tr><td>'+esc(x.name)+'</td><td>'+(x.fee*100).toFixed(1)+'%</td><td>'+x.net+' 元</td><td class="hint">'+esc(x.days)+' · '+esc(x.extra)+'</td></tr>';});
+      r.platforms.forEach(x=>{h+='<tr><td>'+esc(x.name)+'</td><td>'+(x.fee*100).toFixed(1)+'%'+(x.discount?' · 折价 '+(x.discount*100).toFixed(0)+'%':'')+'</td><td>'+x.net+' 元</td><td class="hint">'+esc(x.days)+' · '+esc(x.extra)+'</td></tr>';});
       h+='</table>';
     }
     if(r.listing){h+='<h3>标题</h3><div class="box">'+esc(r.listing.title)+'</div>';
@@ -145,8 +145,10 @@ def _handler(db, cfg, force_mock):
                 body = self._read()
                 original = body.get("original")
                 original = float(original) if str(original).strip() not in ("", "None", "null") else None
+                floor = body.get("floor")
+                floor = float(floor) if str(floor).strip() not in ("", "None", "null") else None
                 r = agent.quote(body.get("text", ""), original=original, config=cfg,
-                                db=db, force_mock=force_mock, save=True)
+                                db=db, force_mock=force_mock, save=True, floor=floor)
                 self._json(r)
             except llm.LLMError as e:
                 self._json({"error": str(e)}, 400)

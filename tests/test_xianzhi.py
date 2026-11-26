@@ -146,6 +146,105 @@ class TestAgent(unittest.TestCase):
         self.assertIn("建议挂", r["verdict"])
 
 
+class TestNegationRegression(unittest.TestCase):
+    """闲鱼文案爱写「无拆修、无进水、屏幕无划痕」,这些否定句不是瑕疵。"""
+
+    def test_negated_flaws_ignored(self):
+        self.assertEqual(rules.detect_flaws("无拆修 无进水 屏幕无划痕 无磕碰"), [])
+
+    def test_positive_flaw_kept(self):
+        names = [f["name"] for f in rules.detect_flaws("屏幕有明显划痕")]
+        self.assertIn("屏幕/外观划痕", names)
+
+    def test_negated_keyword_is_flaw(self):
+        # 「无盒」本身就是在说缺配件,不能再当否定句跳过
+        names = [f["name"] for f in rules.detect_flaws("手机 无盒")]
+        self.assertIn("缺配件/无盒", names)
+
+    def test_battery_pack_not_decay(self):
+        # 「原装电池两块」是配件,不是衰减;只有电池健康/续航这类才算
+        self.assertEqual(rules.detect_flaws("原装电池两块 无拆修"), [])
+
+    def test_battery_health_counts(self):
+        names = [f["name"] for f in rules.detect_flaws("电池健康 85%")]
+        self.assertIn("电池/续航衰减", names)
+
+    def test_clean_phone_not_capped(self):
+        cat, _ = rules.detect_category("手机")
+        cond = rules.detect_condition("95新")
+        p = rules.price(5999, cat, cond, 4, rules.detect_flaws("95新 无拆修 无进水 屏幕无划痕"))
+        self.assertEqual(p["flaw_deduct"], 0)
+
+
+class TestConditionOverlapRegression(unittest.TestCase):
+    """「九成新」不等于「95新」:同一条描述按 95新算会虚高约 24%。"""
+
+    def test_jiuchengxin_is_9(self):
+        self.assertEqual(rules.detect_condition("自用 九成新")["key"], "fair")
+        self.assertEqual(rules.detect_condition("自用 9成新")["key"], "fair")
+
+    def test_95xin_is_good(self):
+        self.assertEqual(rules.detect_condition("95新")["key"], "good")
+
+    def test_gap_between_two_conditions(self):
+        cat, _ = rules.detect_category("手机")
+        a = rules.price(5999, cat, rules.detect_condition("95新"), 4, [])["suggested"]
+        b = rules.price(5999, cat, rules.detect_condition("九成新"), 4, [])["suggested"]
+        self.assertGreater(a / b, 1.2)
+
+
+class TestPlatformNetRegression(unittest.TestCase):
+    """爱回收是按回收价收,不是按挂价收;只按费率算会得到和闲鱼一样的假数字。"""
+
+    def test_aihuishou_discount(self):
+        rows = rules.platform_net(1000)
+        ai = [r for r in rows if r["name"] == "爱回收"][0]
+        self.assertEqual(ai["discount"], 0.20)
+        self.assertEqual(ai["net"], 800)
+
+    def test_hongbulin_ten_percent(self):
+        rows = rules.platform_net(1000)
+        hb = [r for r in rows if r["name"] == "红布林"][0]
+        self.assertEqual(hb["net"], 900)
+
+    def test_sale_platforms_unchanged(self):
+        rows = rules.platform_net(1000)
+        self.assertEqual([r["net"] for r in rows if r["name"] == "闲鱼"][0], 1000)
+        self.assertEqual([r["net"] for r in rows if r["name"] == "转转"][0], 985)
+
+    def test_gap_between_platforms(self):
+        rows = {r["name"]: r["net"] for r in rules.platform_net(942)}
+        self.assertGreater(rows["闲鱼"] - rows["爱回收"], 150)
+
+
+class TestYearsConflictRegression(unittest.TestCase):
+    """「2021 年买的」+「用了 4 年」同时出现时,按使用年限算,不能取更旧的年份。"""
+
+    def test_used_years_wins(self):
+        self.assertEqual(rules.detect_years("2021 年买的 用了4年"), 4)
+
+    def test_year_only(self):
+        self.assertEqual(rules.detect_years("2023年买的"), 4)
+
+    def test_used_only(self):
+        self.assertEqual(rules.detect_years("用了3年"), 3)
+
+
+class TestUserFloor(unittest.TestCase):
+    def test_floor_overrides_formula(self):
+        r = agent.quote("iPhone 13 95新", original=5999, force_mock=True, floor=500)
+        self.assertEqual(r["price"]["floor_price"], 500)
+        self.assertTrue(r["price"]["floor_from_user"])
+
+    def test_floor_default_is_formula(self):
+        r = agent.quote("iPhone 13 95新", original=5999, force_mock=True)
+        self.assertFalse(r["price"]["floor_from_user"])
+
+    def test_bargain_respects_user_floor(self):
+        r = agent.quote("iPhone 13 95新", original=5999, force_mock=True, floor=1200)
+        self.assertTrue(all("1200" in b["reply"] or b["offer"] >= 1200 for b in r["bargain"]))
+
+
 if __name__ == "__main__":
     unittest.main()
 
