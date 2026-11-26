@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>xianzhi · 二手定价</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--line:#30363d;--ink:#e6edf3;--muted:#8b949e;--accent:#58a6ff;--ok:#3fb950}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif;line-height:1.6}
+  .wrap{max-width:760px;margin:0 auto;padding:40px 20px 80px}
+  h1{font-size:26px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:22px}
+  label{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}
+  input,textarea{width:100%;background:#0d1117;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px 12px;font-size:14px;font-family:inherit}
+  textarea{min-height:86px;resize:vertical}
+  button{margin-top:18px;background:var(--accent);color:#0d1117;border:none;border-radius:8px;padding:10px 18px;font-weight:600;cursor:pointer}
+  .row{display:flex;gap:12px}
+  .row > div{flex:1}
+  .result{margin-top:28px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px}
+  .big{font-size:34px;font-weight:700;color:var(--ok)}
+  .range{color:var(--muted);font-size:14px;margin-top:4px}
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}
+  td,th{padding:7px 4px;border-bottom:1px solid #21262d;text-align:left}
+  th{color:var(--muted);font-size:12px}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .note{color:#d29922;font-size:13px;margin-top:8px}
+  .find{color:var(--muted);font-size:13px;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>xianzhi</h1>
+  <div class="sub">贴一段描述，给一个敢挂的价格</div>
+
+  <form method="post" action="/quote">
+    <label>物品描述（成色、使用情况、瑕疵）</label>
+    <textarea name="text" placeholder="iPhone 13 128G 九成新 用了 4 年 无拆修 电池健康 88%"></textarea>
+    <div class="row">
+      <div>
+        <label>型号（命中行情才用得准）</label>
+        <input name="model" placeholder="iPhone 13 128G">
+      </div>
+      <div>
+        <label>原价（元）</label>
+        <input name="original" type="number" step="1" placeholder="5999">
+      </div>
+      <div>
+        <label>已用年数</label>
+        <input name="years" placeholder="4">
+      </div>
+    </div>
+    <button type="submit">算价格</button>
+  </form>
+
+  {% if result %}
+  <div class="result">
+    <div class="big">{{ result.suggested }} 元</div>
+    <div class="range">区间 {{ result.low }}–{{ result.high }} · 底价 {{ result.floor }} · 依据 {{ result.anchor }}</div>
+    <table>
+      <tr><th>平台</th><th class="num">到手</th></tr>
+      {% for name, value in result.net %}
+      <tr><td>{{ name }}</td><td class="num">{{ value }}</td></tr>
+      {% endfor %}
+    </table>
+    {% for note in result.notes %}<div class="note">注意：{{ note }}</div>{% endfor %}
+    {% for rule, msg in result.findings %}<div class="find">· {{ rule }} — {{ msg }}</div>{% endfor %}
+  </div>
+  {% endif %}
+</div>
+</body>
+</html>

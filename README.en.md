@@ -1,238 +1,120 @@
-# XianZhi · Second-hand Pricing Assistant
+# xianzhi · second-hand pricing
 
-[![test](https://github.com/wushiyi105-jpg/xianzhi/workflows/test/badge.svg)](https://github.com/wushiyi105-jpg/xianzhi/actions) [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)]() [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![codecov](https://codecov.io/gh/wushiyi105-jpg/xianzhi/branch/main/graph/badge.svg)](https://codecov.io/gh/wushiyi105-jpg/xianzhi)
+![Usage: quote and net-proceeds comparison](assets/demo.gif)
 
-![usage](assets/demo.gif)
+Tell it what you're selling; get a price you can list at, copy that sells, and answers for haggling.
 
-> Price a used item: depreciation, condition and flaws give a range and a floor, plus net proceeds per platform, a ready-to-post listing and three bargaining replies.
+## Features
 
-The hard part of selling second-hand is not posting — it is **pricing**. Too high and nobody asks, too low and it is gone in an hour, and only afterwards do you realise you undersold. Depreciation, flaw deductions and platform fees are all arithmetic. Do that first, then write the listing.
+- **Market anchor**: 10 models in `data/market.json` carry estimated ranges; a hit returns mid/low/high, a miss falls back to the formula with a ±8% band and an explicit `pricing.no_market` note.
+- **Condition factors**: longest-match table (`九成新` = 0.58 is not stolen by `9成新`), with a 3-character negation window so `无磕碰` is not penalised.
+- **Depreciation**: digital 0.55 in year one then ×0.82 per year; appliances 0.68 then ×0.92 with a 0.30 floor.
+- **Net proceeds**: Xianyu 0%, Zhuanzhuan 1%, Aihuishou buy-back at 0.80 of list price, Hongbulin 15%; a buy-back below 85% of list raises `fees.recycle_gap`.
+- **Deviation warning**: formula price ≥25% away from market price raises `pricing.deviation`.
+- **Number guard**: any sentence in model-written copy that cites a number not present in the input is dropped whole.
+- **CLI + Web**: one command for a price, one page for range and net proceeds.
 
-**CLI + Web, zero third-party dependencies.**
-
-## ✨ Features
-
-- 🏷 **8 category models** — phone, computer, camera, appliance, furniture, fashion, baby, books/instruments, each with first-year retention, yearly decay and a residual floor
-- ✨ **5 condition grades** — new 1.00 / 99% 0.86 / 95% 0.72 / 90% 0.58 / 80% and below 0.40
-- 🩹 **5 flaw types** — appearance, battery, repair, missing parts, malfunction, 5%–20% each, capped at 30%
-- 💰 **Range and floor** — suggested ×0.85–1.12 is the listing range, ×0.80 is the bargaining floor
-- 🏪 **4 platform net prices** — Xianyu 0%, Zhuanzhuan 1.5%, Hongbulin 10% by fee; Aihuishou buys at a trade-in price, estimated at 80% of the listing price (not a 0% fee)
-- 📝 **Listing copy** — title ≤30 characters, body with condition / purchase / flaws / parts / transaction, five tags
-- 🗣 **Three bargaining tiers** — 5%, 12%, 25%, holding the floor
-- 🚫 **Banned-word scan** — 12 words in four groups (counterfeit, off-platform, absolute claims, prohibited), each with a rewrite
-- 📷 **Listing check** — photos, serial, receipt, flaw disclosure, parts, transaction method
-- 🔒 **Amounts are local-only** — the model writes advice and risks; any price in its output is replaced by `strip_money`
-
-## 🚀 Quick start
+## Quick start
 
 ```bash
-git clone https://github.com/wushiyi105-jpg/xianzhi.git
-cd xianzhi
-
-cp .env.example .env      # optional: LLM_API_KEY
-
-python -m xianzhi quote --text "iPhone 13 128G, 95% new, bought 2023, battery 82%, light screen scratches, no box" --original 5999
+uv sync --extra dev
+uv run xianzhi quote --text "iPhone 13 128G 九成新 用了 3 年 无拆修" --model "iPhone 13 128G" --original 5999 --years 3
+uv run xianzhi serve            # http://127.0.0.1:8000
 ```
 
-Or keep the description in `item.txt` and run `python -m xianzhi quote --file item.txt --original 5999 --save`.
+Measured on that exact input: list at ¥1525, range ¥1408–1642, floor ¥1309; net ¥1525 on Xianyu, ¥1510 on Zhuanzhuan, ¥1220 via Aihuishou, ¥1296 on Hongbulin, plus a `fees.recycle_gap` finding.
+26 tests, 85% line coverage (`uv run coverage report`).
 
-Docker:
+## Why not just ask a general model
+
+Hand "iPhone 13, 90% new" to a general model and you get a number, but:
+
+1. **It doesn't price condition** — 0.58 vs 0.72 is 14 points of difference, and it eyeballs it;
+2. **It misreads negation** — "no repairs" regularly becomes "repaired";
+3. **It ignores payout mechanics** — Aihuishou pays 80% of list, Hongbulin takes 15%;
+4. **It invents numbers** — which is why copy here must pass the number guard.
+
+xianzhi keeps condition factors, defect detection and platform fees in local code; the model only writes copy.
+
+## Who it's for
+
+- People selling three or more items a year who don't want to re-check the market each time;
+- People unsure what to list at, afraid of pricing themselves out;
+- People comparing "sell it myself" against "hand it to a buy-back service".
+
+## Roadmap
+
+- [ ] Replace estimated market data with real sold-price samples (`samples=null` today)
+- [ ] City/season adjustments for appliance residuals
+- [ ] Batch import of several items, one pricing pass
+- [ ] Feed actual sale prices back to build a personal deviation curve
+
+## FAQ
+
+**Is the price accurate?**
+Accurate enough to pick a listing tier, not a contract price. The 10 models are estimated ranges with no sample size, and every output states the provenance; condition factors and fees are hard rules and reproducible.
+
+**Does it work without an API key?**
+Yes. `quote`, `history` and `serve` are fully offline; only `listing` needs a model and prints "offline mode: no API key, quote only" otherwise.
+
+**What about my old 0.x database?**
+Run `xianzhi migrate --db data/xianzhi.db`. It backs up to `xianzhi.bak-<timestamp>.db` first, converts yuan-denominated rows into the cents schema, and exits 2 without touching the file when the schema is unrecognised.
+
+**Why ±8%?**
+An empirical band for the no-market case, not a confidence interval. On a market hit the band comes from the market table itself.
+
+## Commands
 
 ```bash
-docker build -t xianzhi .
-docker run -p 8000:8000 xianzhi
-
-# or straight from the registry (0.1.0 is pinned, 0.1 / latest follow the newest build)
-docker run --rm -p 8000:8000 ghcr.io/wushiyi105-jpg/xianzhi:0.1.0
+xianzhi quote --text "..." [--model MODEL] [--original PRICE] [--years N] [--json] [--db PATH]
+xianzhi listing --text "..." [--model MODEL] [--original PRICE] [--years N]   # needs API key
+xianzhi history [--limit 10] [--db PATH]
+xianzhi migrate [--db PATH] [--force]        # 0.x migration, backs up first
+xianzhi serve [--port 8000] [--db PATH]
+xianzhi doctor [--db PATH]                   # config / database / market / llm / webhook
 ```
 
-### 📂 Real listing examples
+## Dependencies
 
-`examples/` holds four listings written the way Xianyu sellers actually write them — condition word in the title, body stuffed with "no repair / no water damage / inspection welcome / no haggling", tags at the end. `examples/out/` is the real output, with the command on line 1 and the run date on line 2:
+Runtime: `fastapi`, `uvicorn`, `jinja2`, `python-multipart`, `pydantic` + `pydantic-settings` (prefix `XZ_`), `httpx`, `typer` + `rich`, `sqlalchemy` + `alembic`.
+Dev: `pytest`, `pytest-cov`, `ruff` (line-length 100), `mypy` (`ignore_missing_imports`).
+Python ≥3.10; the image is `python:3.10-slim`, two-stage, `EXPOSE 8000`.
 
-```bash
-python -m xianzhi --mock quote --file examples/case-01.txt --original 5999
-```
-
-| File | Case | Original | Result |
-|---|---|---|---|
-| `case-01.txt` | iPhone 13 128G, spare phone | 5999 | 90% · market anchor 1525 (range 1408–1642, floor 1220); formula price 942, -38% flagged |
-| `case-02.txt` | Haier 465L fridge, moving out | 4299 | model not in table → formula 1579 (range 1342–1768), flagged "no market reference, formula runs low" |
-| `case-03.txt` | Sony A7M3 body only | 12999 | 99% · no flaws · market anchor 6300 (range 5775–6825) |
-| `case-04.txt` | LV Neverfull MM | 12000 | 95% · banned phrase "tenfold refund" · market anchor 4900; formula 1944, -60% flagged |
-
-These four are regression material: "九成新" is not "95新", "no repair / no water damage / no scratches" are negations and not flaws, while "battery health 85%" is a battery deduction — each one has a test.
-
-### 💹 Market anchor
-
-Real used prices for 3C gear are set by **what the same model sells for today**, not by what it cost new: an iPhone 13 launched at 5999 still trades at 1500–2200 on Xianyu in Nov 2026; an LV Neverfull bought at 12000 still sells around 4900. Linear depreciation against the original price makes both look implausibly cheap to anyone who knows the market.
-
-So pricing has two layers:
-
-1. `data/market.json` holds current second-hand ranges for 29 popular models (iPhone 13/14/15, Xiaomi 13/14, Mate60, iPad Air5, MacBook Air M1, A7M3, EOS R6, Dyson V8, LV Neverfull…). The baseline is the **95%-new, flaw-free private-sale price**, split by storage, hand-compiled for Nov 2026 — not scraped.
-2. Pricing is market-first: `range midpoint × condition adjustment × (1 - flaws)`, falling back to the model's default tier when storage does not match. Only models missing from the table fall back to original-price depreciation; when both exist the formula price is computed too and shown side by side: "formula 942 · market estimate 1525 · gap -38% · both are estimates — confirm with the actual sold price for the same model". Neither number is presented as the fact.
-
-```bash
-# model in the table: no original price needed
-python -m xianzhi --mock quote --text "iPhone 13 128G 95新 电池健康 85% 无拆修"
-```
-
-## 🤔 Why not just ask a general LLM
-
-A general model says "check recent sales and list around 3,000". That number cannot be recomputed and you cannot tell whether you lost money. Four differences:
-
-1. **Right anchor, believable number** — used 3C gear is priced by today's market for the same model, not by linear depreciation. The original-price formula (`original × first-year retention × decay^(years-1) × condition × (1 - flaws)`) is kept as a reference basis; when it deviates more than 30% both numbers are shown with a note that both are estimates. An iPhone 13 128G at 90% gets 1525 instead of 942; an LV Neverfull gets 4900 instead of 1944.
-2. **Range and floor are separate** — list 1525, range 1408–1642, floor 1220. Three numbers with three jobs: the range to list, the floor to hold. A single model number gives you no anchor when someone bargains.
-3. **Platform fees reach the net price** — the same iPhone 13 at 1525 nets 1525 on Xianyu, 1502 on Zhuangzhuan, 1372 on Hongbulin (10% commission), 1220 on Aihuishou (trade-in at 80%). Only arithmetic makes that visible.
-4. **Works offline** — pricing, platforms, copy, bargaining, banned words and checklist are all local; without a key you only lose the model's advice paragraphs.
-
-## 🎯 Use cases
-
-- **Before upgrading a phone**: 95% new, scratches, no box — see the range and floor, then decide between a slow Xianyu sale and a fast trade-in.
-- **Moving out, selling furniture**: furniture depreciates fastest (45% first year, ×0.85 per year); the tool suggests bundling rather than listing piece by piece until moving day.
-- **Can't write the listing**: title, body and tags in one go, with flaws stated on line two to reduce post-sale haggling.
-- **Tired of lowballs**: three tiers tell you 5% is fine, 12% needs a counter, 25% is a polite no.
-
-## 🗺 Roadmap
-
-- **Auto-refreshing market ranges**: the 29 ranges are hand-compiled Nov 2026 estimates; next step is scraping listed and sold samples to refresh them on a 7-day window.
-- **Multi-platform repricing**: platform-specific title lengths and tags, keeping a price history.
-- **Photo guide per category**: required angles, with a completeness check.
-- **Post-sale haggling library**: replies for "not as described", "malfunction", "shipping dispute".
-- **Batch clearance**: enter several items, get a bundling order and combination suggestion.
-
-## ❓ FAQ
-
-**No original price?**
-If the model is in the market table (29 popular models) you get a price without one — "iPhone 13 128G 95新" is enough. Only an unknown model with no original price triggers the prompt for price and purchase year.
-
-**Where do the ranges come from?**
-Hand-compiled Nov 2026 listing-price estimates, stated in `data/market.json` under `note` — not scraped, no sample size; "sold prices usually run 5%–8% below asking" is a rule of thumb, not a statistic. Edit that file to fit your local market; the pricing logic stays the same.
-
-**How is condition judged?**
-By the longest keyword hit: unopened, 99% / opened only, 95% / light use, 90% (九成新 too) / normal wear, 80% / dents. "九成新" is 90% (0.58), not 95%. Default is 95%, and the coefficient is printed so you can change it.
-
-**Can flaws be double-counted?**
-They add up but are capped at 30% (`rules.FLAW_CAP`), so "scratched and water-damaged" does not become a giveaway. Each deduction lives in `data/categories.json`. Negations are skipped: "no repair, no water damage, no screen scratches" are the seller saying these problems do not exist, and "two original batteries" is a spare part rather than battery decay; only phrases like "no box" or "no receipt" count, because they state something is missing.
-
-**Are the platform fees accurate?**
-They follow published rates; Xianyu's software fee on some categories, Zhuanzhuan's inspection fee and Hongbulin's authentication fee are called out separately rather than folded into the rate. Aihuishou is a trade-in buyer, so its net price uses an 8/10 discount instead of a fee.
-
-**Will the model change the price?**
-No. `agent.strip_money()` replaces any "N yuan" in model output with a placeholder; prices come only from `rules.price()`.
-
-## 📖 Commands
-
-```bash
-# 🏷 quote + listing
-python -m xianzhi quote --text "..." --original 5999
-python -m xianzhi quote --file item.txt --original 5999 --save
-python -m xianzhi quote --file item.txt --original 5999 --floor 1800   # own floor, default is 80% of the suggestion
-
-# 🏪 platform fees
-python -m xianzhi platforms
-
-# 🚫 banned words
-python -m xianzhi banned
-
-# 🗂 history
-python -m xianzhi history
-
-# 🌐 web
-python -m xianzhi web --port 8000
-
-python -m xianzhi --json quote --text "..." --original 5999
-python -m xianzhi --mock quote --text "..." --original 5999
-```
-
-## 🔌 Model configuration
-
-Any **OpenAI-style `/chat/completions`** endpoint:
-
-| Platform | `LLM_BASE_URL` | `LLM_MODEL` |
-|---|---|---|
-| DeepSeek (default) | `https://api.deepseek.com` | `deepseek-flash` |
-| OpenAI | `https://api.openai.com/v1` | `gpt-4o-mini` |
-| Local Ollama | `http://localhost:11434/v1` | `qwen2.5` |
-
-## 🧠 How it works
-
-```
-description + original price
-  │
-  ├─ rules.detect_category ── 8 categories
-  ├─ rules.detect_condition ─ 5 grades
-  ├─ rules.detect_years ───── "bought 2023" / "used 3 years"
-  ├─ rules.detect_flaws ───── 5 flaw types
-  ├─ rules.price ──────────── residual → condition → flaws → range/floor
-  ├─ rules.platform_net ───── 4 platforms after fees
-  ├─ rules.listing ────────── title/body/tags
-  ├─ rules.bargaining ─────── three tiers
-  ├─ rules.banned ─────────── 12 banned words
-  │
-  ├─ model: advice / risks / buyer questions (strip_money)
-  └─ offline: mock.py assembles from category and flaws
-  │
-  └─ SQLite → CLI / Web
-```
-
-### Data flow
+## How it works
 
 ```mermaid
 flowchart LR
-    A[Description + price] --> B[rules.py<br/>category/condition/years/flaws]
-    B --> C[rules.py<br/>price range & floor]
-    C --> D[rules.py<br/>platform net]
-    C --> E[rules.py<br/>listing + bargaining]
-    B --> F[rules.py<br/>banned words + checklist]
-    G{key present?} -->|no| H[mock.py advice]
-    G -->|yes| I[agent.py model advice]
-    I --> J[strip_money]
-    H --> J
-    D --> K[db.py]
-    E --> K
-    F --> K
-    J --> K
-    K --> L[cli.py / web.py]
+    A[Input: text / model / original price / years] --> B[Longest-match condition table + negation window]
+    B --> C{Market hit?}
+    C -- yes --> D[Market mid/low/high]
+    C -- no --> E[Formula ±8% + no_market]
+    D --> F[Platform fees and buy-back net]
+    E --> F
+    F --> G[Deviation >=25% raises deviation]
+    G --> H[Guarded copy / web result page]
+    H --> I[(SQLite: quotes + alembic_version)]
 ```
 
-## 🗂 Layout
+Rules live in `domain/rules/`, storage and migration in `adapters/`; CLI and Web only render, they never decide.
+
+## Layout
 
 ```
 xianzhi/
 ├── xianzhi/
-│   ├── rules.py    # depreciation, condition, flaws, platforms, copy, bargaining
-│   ├── agent.py    # orchestration + price stripping
-│   ├── mock.py     # offline advice
-│   ├── db.py       # saved quotes
-│   ├── cli.py      # quote / platforms / banned / history / web
-│   └── web.py      # single page + JSON API
-├── data/
-│   ├── categories.json  # 8 categories + 5 grades + 5 flaws
-│   ├── platforms.json   # 4 platform fees and trade-in discount
-│   └── banned.json      # 12 banned words
-├── examples/
-│   ├── case-01..04.txt  # real Xianyu listings
-│   └── out/case-01..04.md  # real output, command on line 1
-├── tests/
-│   ├── test_xianzhi.py      # unit: rule functions
-│   └── test_integration.py  # integration: HTTP / model layer / CLI
-├── Dockerfile
-└── assets/demo.gif
+│   ├── domain/          # models, engine, guard, rules/{condition,pricing,fees}
+│   ├── adapters/        # store.py, migrate.py, llm.py
+│   ├── iface/           # cli.py (Typer), web.py (FastAPI + Jinja2)
+│   ├── config.py        # XZ_ prefixed settings
+│   └── doctor.py
+├── migrations/          # alembic env + versions/0001_init.py
+├── data/market.json     # 10 models with provenance
+├── templates/
+├── tests/               # 26 tests: flow / pricing / guard / migrate / iface
+├── Dockerfile           # python:3.10-slim, EXPOSE 8000
+└── .github/workflows/test.yml
 ```
 
-## ✅ Tests
+## Author
 
-```bash
-python -m unittest discover tests -v
-```
-
-81 cases, all offline and dependency-free: 62 unit tests on local rules (category, year parsing, depreciation, residual floor, flaw deduction and cap, negation and condition-word regressions, platform net, banned words, bargaining tiers, checklist, price stripping, market anchor and gap flag, market provenance, appliance residual calibration) and 19 integration tests that run the three chains for real — HTTP behind a real `ThreadingHTTPServer` (200/404 and saving to SQLite), the model layer with a fake model returning this repo's schema (`tips/risks/buyer_questions`) plus money stripping, and the CLI in a subprocess asserting exit codes 0/2 and stderr. CI runs them on 3.10/3.11/3.12 and also builds the image (pushing to GHCR on tags).
-
-## 👤 Author
-
-Dazhao · 17382987315
-
-## 📄 License
-
-[MIT](./LICENSE)
+shiyi · GitHub [@wushiyi105-jpg](https://github.com/wushiyi105-jpg) · wushiyi105@gmail.com
