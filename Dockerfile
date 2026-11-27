@@ -7,6 +7,7 @@ COPY pyproject.toml README.md ./
 COPY xianzhi ./xianzhi
 COPY templates ./templates
 COPY prompts ./prompts
+COPY data ./data
 COPY migrations ./migrations
 COPY alembic.ini ./
 
@@ -25,6 +26,7 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY --from=builder /app/templates ./templates
 COPY --from=builder /app/prompts ./prompts
+COPY --from=builder /app/data ./data
 COPY --from=builder /app/xianzhi ./xianzhi
 COPY --from=builder /app/migrations ./migrations
 COPY --from=builder /app/alembic.ini ./
