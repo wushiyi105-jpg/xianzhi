@@ -7,7 +7,7 @@ from xianzhi.domain.models import Item, Quote, QuoteRecord
 from xianzhi.ports import StorePort
 
 
-class FakeStore:
+class InMemoryStore:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, Quote]] = []
 
@@ -20,7 +20,7 @@ class FakeStore:
 
 
 def test_quote_and_save_uses_injected_store_only() -> None:
-    fake = FakeStore()
+    fake = InMemoryStore()
     store: StorePort = fake
     item = Item(name="iPhone 13 128G 国行", original_price_cents=599900)
     q, row_id = quote_and_save(store, item, {}, 0.25)
