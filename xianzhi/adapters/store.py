@@ -11,6 +11,8 @@ from alembic.config import Config
 from sqlalchemy import DateTime, Integer, String, create_engine, inspect, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
+from ..domain.models import QuoteRecord
+
 MIGRATIONS_DIR = Path(__file__).resolve().parents[2]
 
 
@@ -22,7 +24,7 @@ class QuoteRow(Base):
     __tablename__ = "quotes"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     item: Mapped[str] = mapped_column(String(300))
-    model: Mapped[str] = mapped_column(String(120), default="")
+    model: Mapped[str] = mapped_column(String(120), default="", index=True)
     anchor: Mapped[str] = mapped_column(String(16))
     suggested_cents: Mapped[int] = mapped_column(Integer)
     low_cents: Mapped[int] = mapped_column(Integer)
@@ -75,6 +77,20 @@ class Store:
             s.commit()
             return row.id
 
-    def recent(self, limit: int = 10) -> list[QuoteRow]:
+    def recent(self, limit: int = 10) -> list[QuoteRecord]:
         with self.session_factory() as s:
-            return list(s.scalars(select(QuoteRow).order_by(QuoteRow.id.desc()).limit(limit)).all())
+            rows = s.scalars(select(QuoteRow).order_by(QuoteRow.id.desc()).limit(limit)).all()
+            return [
+                QuoteRecord(
+                    item=r.item,
+                    model=r.model,
+                    anchor=r.anchor,
+                    suggested_cents=r.suggested_cents,
+                    low_cents=r.low_cents,
+                    high_cents=r.high_cents,
+                    floor_cents=r.floor_cents,
+                    net_json=r.net_json,
+                    created_at=r.created_at,
+                )
+                for r in rows
+            ]

@@ -9,8 +9,9 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from ..adapters.store import Store
+from ..app.run import quote_and_save
 from ..config import Settings
-from ..domain.engine import load_market, quote
+from ..domain.engine import load_market
 from ..domain.models import Item
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parents[2] / "templates"))
@@ -39,8 +40,7 @@ def create_app(settings: Settings) -> FastAPI:
             used_years=float(years) if years.strip() else None,
             model=model.strip(),
         )
-        q = quote(item, market, settings.deviation_threshold)
-        store.save(text, model, q)
+        q, _ = quote_and_save(store, item, market, settings.deviation_threshold)
         result = {
             "suggested": f"{q.suggested_cents / 100:.0f}",
             "low": f"{q.low_cents / 100:.0f}",

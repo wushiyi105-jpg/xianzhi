@@ -11,8 +11,9 @@ from rich.table import Table
 
 from ..adapters.llm import LLMClient
 from ..adapters.store import Store
+from ..app.run import price_only, quote_and_save
 from ..config import settings as base_settings
-from ..domain.engine import allowed_numbers, load_market, quote
+from ..domain.engine import allowed_numbers, load_market
 from ..domain.guard import guard
 from ..domain.models import Item
 
@@ -41,8 +42,7 @@ def quote_cmd(
         model=model,
     )
     market = load_market()
-    q = quote(item, market, base_settings.deviation_threshold)
-    Store(_settings(db).db_path).save(text, model, q)
+    q, _ = quote_and_save(Store(_settings(db).db_path), item, market, base_settings.deviation_threshold)
 
     if as_json:
         console.print_json(json.dumps({
@@ -79,7 +79,7 @@ def listing(
     """生成挂卖文案（无 key 时只打印报价）。"""
     s = base_settings
     item = Item(name=text, original_price_cents=int(original * 100), used_years=years, model=model)
-    q = quote(item, load_market(), s.deviation_threshold)
+    q = price_only(item, load_market(), s.deviation_threshold)
     console.print(f"建议挂 {q.suggested_cents / 100:.0f} 元，区间 {q.low_cents / 100:.0f}–{q.high_cents / 100:.0f}")
     if not s.llm_enabled:
         console.print("[yellow]离线模式：未配置 API key，只输出报价[/]")
@@ -131,13 +131,14 @@ def migrate(db: Path = typer.Option(None), force: bool = typer.Option(False, "--
 
 
 @app.command()
-def serve(port: int = typer.Option(8000), db: Path = typer.Option(None)) -> None:
+def serve(port: int = typer.Option(0, help="0 表示用配置里的 8020"), db: Path = typer.Option(None)) -> None:
     """Web 界面。"""
     import uvicorn
 
     from .web import app_factory
 
-    uvicorn.run(app_factory(_settings(db)), host="127.0.0.1", port=port)
+    s = _settings(db)
+    uvicorn.run(app_factory(s), host="127.0.0.1", port=port or s.port)
 
 
 @app.command()

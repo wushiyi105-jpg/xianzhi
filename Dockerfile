@@ -31,6 +31,6 @@ COPY --from=builder /app/alembic.ini ./
 
 RUN mkdir -p /data
 VOLUME ["/data"]
-EXPOSE 8000
+EXPOSE 8020
 
-CMD ["uvicorn", "xianzhi.iface.web:app_factory", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "xianzhi.iface.web:app_factory", "--factory", "--host", "0.0.0.0", "--port", "8020"]

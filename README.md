@@ -19,7 +19,7 @@
 ```bash
 uv sync --extra dev
 uv run xianzhi quote --text "iPhone 13 128G 九成新 用了 3 年 无拆修" --model "iPhone 13 128G" --original 5999 --years 3
-uv run xianzhi serve            # http://127.0.0.1:8000
+uv run xianzhi serve            # http://127.0.0.1:8020
 ```
 
 实测这一段输出：建议挂 1525 元，区间 1408–1642，底价 1309；闲鱼 1525 / 转转 1510 / 爱回收 1220 / 红布林 1296，并给出 `fees.recycle_gap`。
@@ -70,7 +70,7 @@ xianzhi quote --text "..." [--model 型号] [--original 原价] [--years 年数]
 xianzhi listing --text "..." [--model 型号] [--original 原价] [--years 年数]   # 生成文案，需 API key
 xianzhi history [--limit 10] [--db 路径]
 xianzhi migrate [--db 路径] [--force]        # 0.x 旧库迁移，先备份
-xianzhi serve [--port 8000] [--db 路径]
+xianzhi serve [--port 8020] [--db 路径]
 xianzhi doctor [--db 路径]                   # 配置 / 数据库 / 行情 / 模型 / webhook 五项
 ```
 
@@ -78,7 +78,7 @@ xianzhi doctor [--db 路径]                   # 配置 / 数据库 / 行情 / �
 
 运行时：`fastapi`、`uvicorn`、`jinja2`、`python-multipart`（表单）、`pydantic` + `pydantic-settings`（配置，前缀 `XZ_`）、`httpx`（模型与 webhook）、`typer` + `rich`（CLI）、`sqlalchemy` + `alembic`（存储与建表）。
 开发：`pytest`、`pytest-cov`、`ruff`（line-length 100）、`mypy`（`ignore_missing_imports`）。
-Python ≥3.10；容器镜像基于 `python:3.10-slim`，两阶段构建，`EXPOSE 8000`。
+Python ≥3.10；容器镜像基于 `python:3.10-slim`，两阶段构建，`EXPOSE 8020`。
 
 ## 工作原理
 
@@ -110,8 +110,8 @@ xianzhi/
 ├── migrations/          # alembic env + versions/0001_init.py
 ├── data/market.json     # 10 个型号 + provenance
 ├── templates/           # 单页表单与结果
-├── tests/               # 26 条，flow / pricing / guard / migrate / iface
-├── Dockerfile           # python:3.10-slim，EXPOSE 8000
+├── tests/               # 29 条，flow / pricing / guard / migrate / iface / schema / app
+├── Dockerfile           # python:3.10-slim，EXPOSE 8020（本机无 docker，镜像未构建验证）
 └── .github/workflows/test.yml
 ```
 

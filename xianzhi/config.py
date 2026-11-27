@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="XZ_", extra="ignore")
 
     db_path: Path = Path("data/xianzhi.db")
+    port: int = 8020
     llm_base_url: str = "https://api.deepseek.com"
     llm_api_key: str = ""
     llm_model: str = "deepseek-flash"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,21 @@ class Finding:
     message: str
     evidence: str
     suggestion: str = ""
+
+
+@dataclass(frozen=True)
+class QuoteRecord:
+    """落库后的报价摘要，给 history 用。"""
+
+    item: str
+    model: str
+    anchor: str
+    suggested_cents: int
+    low_cents: int
+    high_cents: int
+    floor_cents: int
+    net_json: str
+    created_at: datetime
 
 
 @dataclass
