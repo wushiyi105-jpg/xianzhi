@@ -23,7 +23,7 @@ class LLMClient:
             "model": self.model,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": facts}],
             "temperature": 0.5,
-            "max_tokens": 700,
+            "max_tokens": 2000,
         }
         with httpx.Client(timeout=self.timeout) as c:
             r = c.post(
