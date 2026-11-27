@@ -9,7 +9,7 @@ description = "二手定价与挂卖：行情锚定、成色折算、到手价�
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "shiyi", email = "wushiyi105@gmail.com" }]
+authors = [{ name = "小米", email = "wushiyi105@gmail.com" }]
 dependencies = [
   "fastapi>=0.115", "uvicorn[standard]>=0.30", "python-multipart>=0.0.9",
   "pydantic>=2.7", "pydantic-settings>=2.3", "httpx>=0.27", "jinja2>=3.1",
@@ -26,11 +26,12 @@ xianzhi = "xianzhi.iface.cli:app"
 packages = ["xianzhi"]
 
 [tool.ruff]
+preview = true
 target-version = "py310"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "I"]
+select = ["E2", "E3", "E4", "E7", "E9", "F", "I"]
 
 [tool.mypy]
 python_version = "3.10"

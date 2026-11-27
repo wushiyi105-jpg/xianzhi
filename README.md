@@ -23,7 +23,7 @@ uv run xianzhi serve            # http://127.0.0.1:8020
 ```
 
 实测这一段输出：建议挂 1525 元，区间 1408–1642，底价 1309；闲鱼 1525 / 转转 1510 / 爱回收 1220 / 红布林 1296，并给出 `fees.recycle_gap`。
-本仓 26 条测试，行覆盖 85%（`uv run coverage report` 自查）。
+本仓 31 条测试，行覆盖 85%（`uv run coverage report` 自查）。
 
 ## 为什么不用通用大模型直接问
 
@@ -117,4 +117,4 @@ xianzhi/
 
 ## 作者
 
-shiyi · GitHub [@wushiyi105-jpg](https://github.com/wushiyi105-jpg) · wushiyi105@gmail.com
+小米 · GitHub [@wushiyi105-jpg](https://github.com/wushiyi105-jpg) · 17612850106
