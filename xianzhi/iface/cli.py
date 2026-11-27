@@ -89,7 +89,14 @@ def listing(
         "区间": [q.low_cents / 100, q.high_cents / 100],
         "到手价": {k: v / 100 for k, v in q.net.items()},
     }, ensure_ascii=False)
-    raw = LLMClient(s.llm_base_url, s.llm_api_key, s.llm_model).write(facts)
+    try:
+        raw = LLMClient(s.llm_base_url, s.llm_api_key, s.llm_model).write(facts)
+    except Exception as exc:  # noqa: BLE001 模型失败不挡住报价
+        console.print(f"[yellow]离线模式：模型调用失败，只输出报价（{type(exc).__name__}）[/]")
+        return
+    if not raw:
+        console.print("[yellow]离线模式：模型返回空，只输出报价[/]")
+        return
     safe, dropped = guard(raw, allowed_numbers(q))
     console.print(safe or raw)
     if dropped:

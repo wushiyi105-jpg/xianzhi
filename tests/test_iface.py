@@ -57,3 +57,25 @@ def test_web_index_and_quote_roundtrip(tmp_path):
     )
     assert resp.status_code == 200
     assert "建议" in resp.text or "元" in resp.text
+
+
+def test_listing_degrades_without_crashing(monkeypatch):
+    import xianzhi.iface.cli as cli
+
+    class Boom:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def write(self, facts):
+            raise RuntimeError("offline")
+
+    monkeypatch.setattr(cli.base_settings, "llm_api_key", "test")
+    monkeypatch.setattr(cli, "LLMClient", Boom)
+    result = runner.invoke(
+        app,
+        ["listing", "--text", "iPhone 13 128G 九成新", "--model", "iPhone 13 128G",
+         "--original", "5999", "--years", "3"],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert "建议挂" in result.stdout
+    assert "离线模式" in result.stdout
