@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from xianzhi.app.run import quote_and_save
 from xianzhi.domain.models import Item, Quote, QuoteRecord
+from xianzhi.ports import StorePort
 
 
 class FakeStore:
@@ -19,9 +20,10 @@ class FakeStore:
 
 
 def test_quote_and_save_uses_injected_store_only() -> None:
-    store = FakeStore()
+    fake = FakeStore()
+    store: StorePort = fake
     item = Item(name="iPhone 13 128G 国行", original_price_cents=599900)
     q, row_id = quote_and_save(store, item, {}, 0.25)
     assert row_id == 7
     assert q.suggested_cents > 0
-    assert store.calls[0][0] == item.name
+    assert fake.calls[0][0] == item.name
