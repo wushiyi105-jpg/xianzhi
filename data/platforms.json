@@ -1,0 +1,9 @@
+{
+  "recycle_discount": 0.80,
+  "platforms": {
+    "闲鱼": {"fee": 0.0, "recycle": false, "note": "个人对个人，无手续费；曝光靠擦亮"},
+    "转转": {"fee": 0.01, "recycle": false, "note": "平台抽佣约 1%，验机流量更集中"},
+    "爱回收": {"fee": 0.0, "recycle": true, "note": "回收商报价，按挂价约 8 折，当场打款"},
+    "红布林": {"fee": 0.15, "recycle": false, "note": "寄卖抽佣约 15%，适合包袋服饰"}
+  }
+}

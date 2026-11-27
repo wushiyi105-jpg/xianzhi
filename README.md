@@ -6,12 +6,13 @@
 
 ## 功能特性
 
-- **行情锚定**：`data/market.json` 里 10 个型号有估算区间，命中就用 mid/low/high；没命中退回公式，输出 ±8% 区间并明说"仅公式参考，通常偏低"
+- **行情锚定**：`data/market.json` 里 33 个型号有估算区间，命中就用 mid/low/high；没命中退回公式，输出 ±8% 区间并明说"仅公式参考，通常偏低"
 - **成色折算**：最长词匹配（`九成新`=0.58 不会被 `9成新` 抢走），前 3 个字窗口过滤否定词（`无磕碰` 不扣价）
 - **折旧公式**：数码首年 0.55、之后每年 ×0.82；家电首年 0.68、每年 ×0.92、地板价 0.30
 - **到手价对比**：闲鱼 0%、转转 1%、爱回收按挂价 0.80 回收、红布林 15%；回收价低于挂价 85% 出 `fees.recycle_gap`
 - **偏差提示**：公式价与行情价差 ≥25% 出 `pricing.deviation`
 - **数字守卫**：模型写出的文案里出现输入之外的数字，整句丢
+- **整卡输出**：`card` 一条命令给区间、四平台到手价、三句砍价话术、可直接贴的文案、暗语解释；`--model` 不填时从全称或暗语自动识别
 - **CLI + Web**：一条命令出价，网页一眼看区间与到手
 
 ## 快速开始
@@ -19,11 +20,13 @@
 ```bash
 uv sync --extra dev
 uv run xianzhi quote --text "iPhone 13 128G 九成新 用了 3 年 无拆修" --model "iPhone 13 128G" --original 5999 --years 3
+uv run xianzhi card --text "iPhone 13 128G 九成新 边框有划痕 无拆修" --original 5999 --out 报价卡.md
 uv run xianzhi serve            # http://127.0.0.1:8020
 ```
 
 实测这一段输出：建议挂 1525 元，区间 1408–1642，底价 1309；闲鱼 1525 / 转转 1510 / 爱回收 1220 / 红布林 1296，并给出 `fees.recycle_gap`。
-本仓 31 条测试，行覆盖 85%（`uv run coverage report` 自查）。
+`card` 同时写出 45 行报价卡：区间、四平台到手价、三句砍价、可贴文案、暗语解释。
+本仓 39 条测试（`uv run pytest` 自查）。
 
 ## 为什么不用通用大模型直接问
 
@@ -52,7 +55,7 @@ xianzhi 把成色系数、瑕疵识别、平台费率都放到本地代码里，
 ## FAQ
 
 **问：价格准吗？**
-不准到"能当合同价"，准到"知道该挂哪一档"。10 个型号是估算区间，没样本量，输出里每次都标来源；成色和费率是硬规则，这部分可复现。
+不准到"能当合同价"，准到"知道该挂哪一档"。33 个型号是估算区间，没样本量，输出里每次都标来源；成色和费率是硬规则，这部分可复现。
 
 **问：没配 API key 能用吗？**
 能。`quote`、`history`、`serve` 全部离线；只有 `listing` 生成文案需要模型，没 key 时打印"离线模式：未配置 API key，只输出报价"。
@@ -108,7 +111,7 @@ xianzhi/
 │   ├── config.py        # XZ_ 前缀配置
 │   └── doctor.py
 ├── migrations/          # alembic env + versions/0001_init.py
-├── data/market.json     # 10 个型号 + provenance
+├── data/market.json     # 33 个型号 + provenance
 ├── templates/           # 单页表单与结果
 ├── tests/               # 29 条，flow / pricing / guard / migrate / iface / schema / app
 ├── Dockerfile           # python:3.10-slim，EXPOSE 8020（本机无 docker，镜像未构建验证）

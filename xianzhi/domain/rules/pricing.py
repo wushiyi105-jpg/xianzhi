@@ -59,6 +59,10 @@ def anchor(item: Item, market: dict[str, MarketPrice], formula_cents: int, thres
         )
         return formula_cents, int(formula_cents * 0.92), int(formula_cents * 1.08), "formula", findings, notes
 
+    if formula_cents <= 0:
+        notes.append("未填原价，跳过公式对照；直接按同型号行情给区间")
+        return entry.mid_cents, entry.low_cents, entry.high_cents, "market", findings, notes
+
     dev = (entry.mid_cents - formula_cents) / entry.mid_cents if entry.mid_cents else 0.0
     if abs(dev) >= threshold:
         findings.append(

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- 行情表扩到 33 个型号；新增本地成色档位、瑕疵词、平台费率、暗语与型号别名
+- 新增 `card` 命令：区间 + 四平台到手价 + 三句砍价 + 可贴文案 + 暗语解释
+- 未填原价时跳过公式对照，不再误报"公式与行情偏差 +100%"
 - `0001_init` 改为显式 `op.create_table` / `op.create_index`，运行期走 `alembic upgrade`
 - `app/` 只依赖 `ports`，新增内存假实现用例
 - 开 ruff `E2`/`E3`；CI 增加 `docker build` 与 `/health` 探活

@@ -11,8 +11,10 @@ from rich.table import Table
 
 from ..adapters.llm import LLMClient
 from ..adapters.store import Store
+from ..app.card import build_card
 from ..app.run import price_only, quote_and_save
 from ..config import settings as base_settings
+from ..domain.catalog import detect_model
 from ..domain.engine import allowed_numbers, load_market
 from ..domain.guard import guard
 from ..domain.models import Item
@@ -35,13 +37,15 @@ def quote_cmd(
     db: Path = typer.Option(None),
 ) -> None:
     """给一个建议价、区间与到手价。"""
+    market = load_market()
+    if not model:
+        model = detect_model(text, list(market))
     item = Item(
         name=text,
         original_price_cents=int(original * 100),
         used_years=years,
         model=model,
     )
-    market = load_market()
     q, _ = quote_and_save(Store(_settings(db).db_path), item, market, base_settings.deviation_threshold)
 
     if as_json:
@@ -70,6 +74,31 @@ def quote_cmd(
 
 
 @app.command()
+def card(
+    text: str = typer.Option(..., "--text", help="物品描述，可带成色/瑕疵/暗语"),
+    model: str = typer.Option("", help="型号；不填自动从描述和暗语里认"),
+    original: float = typer.Option(0.0, "--original", help="原价（元）"),
+    years: float = typer.Option(None, "--years", help="已用年数"),
+    out: Path = typer.Option(None, help="输出 Markdown；不填打印到终端"),
+) -> None:
+    """一张卡：区间 + 到手价 + 砍价话术 + 可直接贴的文案。"""
+    market = load_market()
+    model = model or detect_model(text, list(market))
+    if not model and original <= 0:
+        console.print("[red]既没认出型号，也没给原价，无法定价[/]")
+        raise typer.Exit(code=2)
+    item = Item(name=text, original_price_cents=int(original * 100), used_years=years, model=model)
+    q = price_only(item, market, base_settings.deviation_threshold)
+    body = build_card(item, q, text)
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(body, encoding="utf-8")
+        console.print(f"[green]已写出[/] {out}（{len(body.splitlines())} 行）")
+    else:
+        console.print(body)
+
+
+@app.command()
 def listing(
     text: str = typer.Option(..., "--text"),
     model: str = typer.Option(""),
@@ -78,8 +107,11 @@ def listing(
 ) -> None:
     """生成挂卖文案（无 key 时只打印报价）。"""
     s = base_settings
+    market = load_market()
+    if not model:
+        model = detect_model(text, list(market))
     item = Item(name=text, original_price_cents=int(original * 100), used_years=years, model=model)
-    q = price_only(item, load_market(), s.deviation_threshold)
+    q = price_only(item, market, s.deviation_threshold)
     console.print(f"建议挂 {q.suggested_cents / 100:.0f} 元，区间 {q.low_cents / 100:.0f}–{q.high_cents / 100:.0f}")
     if not s.llm_enabled:
         console.print("[yellow]离线模式：未配置 API key，只输出报价[/]")

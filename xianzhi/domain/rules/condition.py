@@ -2,25 +2,13 @@
 
 from __future__ import annotations
 
+from ..catalog import condition_table, defect_words, negations
 from ..models import Finding
 
-# 长词在前：九成新必须先于 9成新 命中
-CONDITION_TABLE: list[tuple[str, str, float]] = [
-    ("全新未拆", "全新", 0.90),
-    ("全新", "全新", 0.88),
-    ("99新", "99新", 0.80),
-    ("95新", "95新", 0.72),
-    ("九成新", "9成新", 0.58),
-    ("9成新", "9成新", 0.58),
-    ("九成", "9成新", 0.58),
-    ("8成新", "8成新", 0.50),
-    ("八成新", "8成新", 0.50),
-    ("7成新", "7成新", 0.42),
-    ("有磕碰", "6成新", 0.35),
-]
-
-DEFECT_WORDS = ["划痕", "拆修", "进水", "磕碰", "掉漆", "鼓包", "烧屏", "老化", "裂纹"]
-NEGATIONS = ["无", "没有", "不", "未", "非"]
+# 长词在前：九成新必须先于 9成新 命中（顺序由 data/condition_factors.json 保证）
+CONDITION_TABLE = condition_table()
+DEFECT_WORDS = defect_words()
+NEGATIONS = negations()
 
 
 def detect_condition(text: str) -> tuple[str, float, str | None]:

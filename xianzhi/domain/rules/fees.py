@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
+from ..catalog import platforms
 from ..models import Finding
+
+_RAW = platforms()
+RECYCLE_DISCOUNT = float(_RAW["recycle_discount"])
 
 # 平台 -> (费率, 是否回收价, 说明)
 PLATFORMS: dict[str, tuple[float, bool, str]] = {
-    "闲鱼": (0.0, False, "个人对个人，无手续费"),
-    "转转": (0.01, False, "平台抽佣约 1%"),
-    "爱回收": (0.0, True, "回收商报价，按挂价约 8 折"),
-    "红布林": (0.15, False, "寄卖抽佣约 15%"),
+    name: (float(row["fee"]), bool(row["recycle"]), str(row["note"]))
+    for name, row in _RAW["platforms"].items()
 }
-
-RECYCLE_DISCOUNT = 0.80
 
 
 def net_prices(listed_cents: int) -> tuple[dict[str, int], list[Finding]]:

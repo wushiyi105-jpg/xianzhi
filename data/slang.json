@@ -1,0 +1,32 @@
+{
+  "phrases": [
+    {"word": "仅拆封", "means": "未使用，但包装已打开", "condition": "全新未拆", "risk": "低"},
+    {"word": "女生自用", "means": "常被用来暗示爱惜，但没有证据", "condition": "", "risk": "中"},
+    {"word": "无拆修", "means": "没有拆机维修；否定句，不算瑕疵", "condition": "", "risk": "低"},
+    {"word": "拆修过", "means": "拆机维修过；算瑕疵", "condition": "有磕碰", "risk": "高"},
+    {"word": "可小刀", "means": "价格还能小幅度商量", "condition": "", "risk": "低"},
+    {"word": "屠龙刀", "means": "买家砍价幅度很大，别按这个降", "condition": "", "risk": "中"},
+    {"word": "面交", "means": "同城当面交易，先验货再付款", "condition": "", "risk": "低"},
+    {"word": "验机报告", "means": "平台出具检测报告，能减少争议", "condition": "95新", "risk": "低"},
+    {"word": "资源机", "means": "非官方渠道机，保修可能没有", "condition": "9成新", "risk": "高"},
+    {"word": "官换机", "means": "官方换新机，型号可能和零售机不同", "condition": "99新", "risk": "中"}
+  ],
+  "models": {
+    "苹果13": "iPhone 13 128G",
+    "苹果14": "iPhone 14 128G",
+    "苹果15": "iPhone 15 128G",
+    "13香": "iPhone 13 128G",
+    "小米13": "小米13 256G",
+    "索尼微单": "索尼 A7M3",
+    "A7M3": "索尼 A7M3",
+    "M1 Air": "MacBook Air M1 8G",
+    "iPad Air4": "iPad Air 4 64G",
+    "Mini3": "大疆 Mini 3",
+    "Switch OLED": "Switch OLED",
+    "戴森V8": "戴森 V8 吸尘器",
+    "戴森吹风机": "戴森 Supersonic HD08",
+    "Kindle": "Kindle Paperwhite 4",
+    "AirPods Pro": "AirPods Pro 2",
+    "Apple Watch": "Apple Watch S8 45mm"
+  }
+}
