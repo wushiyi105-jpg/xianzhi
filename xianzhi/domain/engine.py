@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from .models import Item, MarketPrice, Quote
@@ -48,7 +49,7 @@ def quote(item: Item, market: dict[str, MarketPrice], deviation_threshold: float
     )
 
 
-def allowed_numbers(q: Quote) -> set[str]:
+def allowed_numbers(q: Quote, item: Item | None = None) -> set[str]:
     nums = {
         f"{q.suggested_cents / 100:.0f}",
         f"{q.low_cents / 100:.0f}",
@@ -56,4 +57,7 @@ def allowed_numbers(q: Quote) -> set[str]:
         f"{q.floor_cents / 100:.0f}",
     }
     nums |= {f"{v / 100:.0f}" for v in q.net.values()}
+    if item is not None:
+        nums |= set(re.findall(r"\d+(?:\.\d+)?", item.model))
+        nums |= set(re.findall(r"\d+", item.name))
     return nums

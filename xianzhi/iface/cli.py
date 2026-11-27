@@ -97,7 +97,7 @@ def listing(
     if not raw:
         console.print("[yellow]离线模式：模型返回空，只输出报价[/]")
         return
-    safe, dropped = guard(raw, allowed_numbers(q))
+    safe, dropped = guard(raw, allowed_numbers(q, item))
     console.print(safe or raw)
     if dropped:
         console.print(f"[yellow]已丢弃含未授权数字的句子：{', '.join(dropped)}[/]")
