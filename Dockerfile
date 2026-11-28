@@ -6,6 +6,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY xianzhi ./xianzhi
 COPY templates ./templates
+COPY static ./static
 COPY prompts ./prompts
 COPY data ./data
 COPY migrations ./migrations
@@ -25,6 +26,7 @@ WORKDIR /app
 
 COPY --from=builder /install /usr/local
 COPY --from=builder /app/templates ./templates
+COPY --from=builder /app/static ./static
 COPY --from=builder /app/prompts ./prompts
 COPY --from=builder /app/data ./data
 COPY --from=builder /app/xianzhi ./xianzhi
@@ -36,3 +38,4 @@ VOLUME ["/data"]
 EXPOSE 8020
 
 CMD ["uvicorn", "xianzhi.iface.web:app_factory", "--factory", "--host", "0.0.0.0", "--port", "8020"]
+

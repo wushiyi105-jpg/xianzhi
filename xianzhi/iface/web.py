@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from ..adapters.store import Store
@@ -19,6 +20,11 @@ TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parents[2] / 
 
 def create_app(settings: Settings) -> FastAPI:
     app = FastAPI(title="xianzhi", version="1.0.0")
+    app.mount(
+        "/static",
+        StaticFiles(directory=str(Path(__file__).resolve().parents[2] / "static")),
+        name="static",
+    )
     store = Store(settings.db_path)
     market = load_market()
 
@@ -66,3 +72,4 @@ def app_factory(settings: Settings | None = None) -> FastAPI:
 
         settings = default_settings
     return create_app(settings)
+
