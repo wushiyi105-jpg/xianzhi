@@ -1,0 +1,28 @@
+:root {
+  --bg: #FBF6E3;
+  --bg-subtle: #F6EFD8;
+  --bg-muted: #EDE2C2;
+  --card: #FFFFFF;
+  --text: #23261F;
+  --text-2: #4e5247;
+  --text-3: #626555;
+  --text-4: #6e6e60;
+  --border: #E4DCC3;
+  --border-2: #D5C9A7;
+  --border-3: #C1B184;
+  --accent: #2F5D4A;
+  --accent-soft: #E6F1EA;
+  --accent-ink: #244A3A;
+  --radius: 4px;
+  --radius-sm: 3px;
+  --radius-lg: 8px;
+}
+:root[data-theme="dark"] {
+  --accent: #7FB89B;
+  --accent-soft: #173126;
+  --accent-ink: #B6DCC8;
+}
+.page-head h1 { font-family: "Songti SC", "SimSun", serif; }
+.big { color: #2F5D4A; font-family: var(--mono); }
+.card:first-of-type { border-top: 6px solid #2F5D4A; }
+

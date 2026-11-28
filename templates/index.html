@@ -1,6 +1,6 @@
 {% from "_macros.html" import shell, head, stats, card, tag, empty, note %}
-{% call shell("xianzhi", "二手定价") %}
-{{ head("二手定价", "贴一段描述，给一个敢挂的价格") }}
+{% call shell("xianzhi", "二手挂卖单") %}
+{{ head("这台设备敢挂多少钱", "写清成色和缺陷，先看三档价格，再决定挂多少") }}
 
 {% call card("描述物品") %}
 <form method="post" action="/quote">
